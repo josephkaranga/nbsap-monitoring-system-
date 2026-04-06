@@ -58,7 +58,7 @@ CREATE TYPE district_submission_status AS ENUM (
 -- PROFILES (extends auth.users)
 -- ============================================================
 
-CREATE TABLE public.profiles (
+CREATE TABLE public. profiles (
   id            UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email         TEXT NOT NULL UNIQUE,
   full_name     TEXT NOT NULL,
@@ -512,9 +512,11 @@ $$ LANGUAGE sql SECURITY DEFINER STABLE;
 CREATE POLICY "profiles_select_all" ON public.profiles
   FOR SELECT USING (auth.uid() IS NOT NULL);
 
--- Allow profile creation during signup (trigger function)
-CREATE POLICY "profiles_insert_signup" ON public.profiles
-  FOR INSERT WITH CHECK (true);
+-Only allow users to insert their own profile row
+CREATE POLICY "profiles_insert_signup."
+ON public.profiles
+FOR INSERT
+WITH CHECK (auth.uid() = id);
 
 -- Users can update only their own profile
 CREATE POLICY "profiles_update_own" ON public.profiles
@@ -612,13 +614,14 @@ CREATE POLICY "notifications_own" ON public.notifications
   FOR ALL USING (user_id = auth.uid());
 
 -- Admins can insert notifications for any user
-CREATE POLICY "notifications_admin_insert" ON public.notifications
+CREATE POLICY "notifications_admin_insert" ON public. notifications
   FOR INSERT WITH CHECK (get_my_role() = 'admin' OR user_id = auth.uid());
 
--- ── USER PREFERENCES ──────────────────────────────────────
--- Allow preference creation during signup (trigger function)
-CREATE POLICY "user_preferences_insert_signup" ON public.user_preferences
-  FOR INSERT WITH CHECK (true);
+-- ──Same for preferences
+CREATE POLICY "user_preferences_insert_signup."
+ON public.user_preferences
+FOR INSERT
+WITH CHECK (auth.uid() = user_id);
 
 -- Users only see/modify their own preferences
 CREATE POLICY "user_preferences_own" ON public.user_preferences
