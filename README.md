@@ -143,7 +143,9 @@ supabase db push
 # Email: admin@rema.gov.rw  Password: (strong password)
 # Then in SQL Editor:
 UPDATE public.profiles SET role = 'admin' WHERE email = 'admin@rema.gov.rw';
-```
+```git add 001_initial_schema.sql
+git commit -m "Add missing RLS INSERT policies for user signup"
+git push origin main
 
 ### 5. Local Development
 ```bash
