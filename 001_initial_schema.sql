@@ -512,6 +512,10 @@ $$ LANGUAGE sql SECURITY DEFINER STABLE;
 CREATE POLICY "profiles_select_all" ON public.profiles
   FOR SELECT USING (auth.uid() IS NOT NULL);
 
+-- Allow profile creation during signup (trigger function)
+CREATE POLICY "profiles_insert_signup" ON public.profiles
+  FOR INSERT WITH CHECK (true);
+
 -- Users can update only their own profile
 CREATE POLICY "profiles_update_own" ON public.profiles
   FOR UPDATE USING (auth.uid() = id);
@@ -612,6 +616,10 @@ CREATE POLICY "notifications_admin_insert" ON public.notifications
   FOR INSERT WITH CHECK (get_my_role() = 'admin' OR user_id = auth.uid());
 
 -- ── USER PREFERENCES ──────────────────────────────────────
+-- Allow preference creation during signup (trigger function)
+CREATE POLICY "user_preferences_insert_signup" ON public.user_preferences
+  FOR INSERT WITH CHECK (true);
+
 -- Users only see/modify their own preferences
 CREATE POLICY "user_preferences_own" ON public.user_preferences
   FOR ALL USING (user_id = auth.uid());
