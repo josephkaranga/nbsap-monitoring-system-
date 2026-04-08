@@ -12,6 +12,8 @@ import type { Profile, UserRole } from '../types/database'
 import { ROLE_PERMISSIONS } from '../types/database'
 import { useAuditLog } from '../hooks/useData'
 
+const EMPTY_NEW_USER = { email: '', password: '', full_name: '', role: 'viewer' as UserRole, organization: '', district: '' }
+
 export default function AdminPanel() {
   const { profile: currentUser } = useAuth()
   const [users, setUsers] = useState<Profile[]>([])
@@ -21,6 +23,34 @@ export default function AdminPanel() {
   const [searchTerm, setSearchTerm] = useState('')
   const [roleFilter, setRoleFilter] = useState<UserRole | 'all'>('all')
   const { logs, loading: logsLoading, refresh: refreshLogs } = useAuditLog({ limit: 50 })
+  const [showNewUser, setShowNewUser] = useState(false)
+  const [newUser, setNewUser] = useState({ ...EMPTY_NEW_USER })
+  const [newUserError, setNewUserError] = useState('')
+  const [newUserLoading, setNewUserLoading] = useState(false)
+
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setNewUserError('')
+    if (newUser.password.length < 8) { setNewUserError('Password must be at least 8 characters.'); return }
+    setNewUserLoading(true)
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: newUser.email,
+        password: newUser.password,
+        options: { data: { full_name: newUser.full_name, role: newUser.role, organization: newUser.organization, district: newUser.district } },
+      })
+      if (error) { setNewUserError(error.message); return }
+      // Update role if not viewer (trigger defaults to viewer)
+      if (data.user && newUser.role !== 'viewer') {
+        await supabase.from('profiles').update({ role: newUser.role, organization: newUser.organization, district: newUser.district }).eq('id', data.user.id)
+      }
+      setShowNewUser(false)
+      setNewUser({ ...EMPTY_NEW_USER })
+      await loadUsers()
+    } finally {
+      setNewUserLoading(false)
+    }
+  }
 
   const loadUsers = async () => {
     setLoading(true)
@@ -138,7 +168,7 @@ export default function AdminPanel() {
       {activeTab === 'users' && (
         <div>
           {/* Filters */}
-          <div style={{ display: 'flex', gap: '10px', marginBottom: '16px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '10px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
             <input
               type="text" placeholder="Search users…" value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
@@ -160,7 +190,81 @@ export default function AdminPanel() {
               <option value="district_officer">District Officer</option>
               <option value="viewer">Viewer</option>
             </select>
+            <button
+              onClick={() => { setShowNewUser(true); setNewUserError('') }}
+              style={{
+                marginLeft: 'auto', padding: '8px 16px',
+                background: 'linear-gradient(135deg,#6b21a8,#7c3aed)',
+                color: '#fff', border: 'none', borderRadius: '8px',
+                fontSize: '.82rem', fontWeight: 700, cursor: 'pointer',
+                fontFamily: 'inherit',
+              }}
+            >+ New User</button>
           </div>
+
+          {/* New User Modal */}
+          {showNewUser && (
+            <div style={{
+              position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              zIndex: 1000, padding: '24px',
+            }}>
+              <div style={{
+                background: '#fff', borderRadius: '16px', padding: '28px',
+                width: '100%', maxWidth: '440px',
+                boxShadow: '0 24px 64px rgba(0,0,0,0.2)',
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                  <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: '#0f172a' }}>Create New User</h3>
+                  <button onClick={() => setShowNewUser(false)} style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: '#94a3b8' }}>✕</button>
+                </div>
+                <form onSubmit={handleCreateUser}>
+                  {[
+                    { key: 'full_name', label: 'Full Name', type: 'text' },
+                    { key: 'email', label: 'Email', type: 'email' },
+                    { key: 'password', label: 'Password', type: 'password' },
+                    { key: 'organization', label: 'Organization', type: 'text' },
+                    { key: 'district', label: 'District', type: 'text' },
+                  ].map(f => (
+                    <div key={f.key} style={{ marginBottom: '12px' }}>
+                      <label style={{ display: 'block', fontSize: '.72rem', fontWeight: 600, color: '#64748b', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '.06em' }}>{f.label}</label>
+                      <input
+                        type={f.type}
+                        value={(newUser as any)[f.key]}
+                        onChange={e => setNewUser(p => ({ ...p, [f.key]: e.target.value }))}
+                        required={f.key !== 'organization' && f.key !== 'district'}
+                        style={{ width: '100%', padding: '8px 12px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '.85rem', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                  ))}
+                  <div style={{ marginBottom: '16px' }}>
+                    <label style={{ display: 'block', fontSize: '.72rem', fontWeight: 600, color: '#64748b', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '.06em' }}>Role</label>
+                    <select
+                      value={newUser.role}
+                      onChange={e => setNewUser(p => ({ ...p, role: e.target.value as UserRole }))}
+                      style={{ width: '100%', padding: '8px 12px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '.85rem', fontFamily: 'inherit', outline: 'none' }}
+                    >
+                      <option value="viewer">Viewer</option>
+                      <option value="district_officer">District Officer</option>
+                      <option value="sector_officer">Sector Officer</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </div>
+                  {newUserError && (
+                    <div style={{ background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: '8px', padding: '8px 12px', color: '#991b1b', fontSize: '.78rem', marginBottom: '12px' }}>
+                      ⚠ {newUserError}
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button type="button" onClick={() => setShowNewUser(false)} style={{ flex: 1, padding: '10px', border: '1px solid #e2e8f0', borderRadius: '8px', background: 'transparent', fontSize: '.82rem', cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
+                    <button type="submit" disabled={newUserLoading} style={{ flex: 1, padding: '10px', background: 'linear-gradient(135deg,#6b21a8,#7c3aed)', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '.82rem', fontWeight: 700, cursor: newUserLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+                      {newUserLoading ? 'Creating…' : 'Create User'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
 
           {loading ? (
             <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>Loading users…</div>
