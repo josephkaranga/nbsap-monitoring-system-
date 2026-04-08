@@ -68,19 +68,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // ── Fetch profile + preferences ────────────────────────
   const fetchProfile = useCallback(async (userId: string) => {
-    const [profileRes, prefsRes] = await Promise.all([
-      supabase.from('profiles').select('*').eq('id', userId).single(),
-      supabase.from('user_preferences').select('*').eq('user_id', userId).single(),
-    ])
+    try {
+      const [profileRes, prefsRes] = await Promise.all([
+        supabase.from('profiles').select('*').eq('id', userId).single(),
+        supabase.from('user_preferences').select('*').eq('user_id', userId).single(),
+      ])
 
-    if (profileRes.data) setProfile(profileRes.data)
-    if (prefsRes.data) setPreferences(prefsRes.data)
+      if (profileRes.data) setProfile(profileRes.data)
+      if (prefsRes.data) setPreferences(prefsRes.data)
 
-    // Update last_login
-    await supabase
-      .from('profiles')
-      .update({ last_login: new Date().toISOString() })
-      .eq('id', userId)
+      // Update last_login (non-blocking)
+      supabase
+        .from('profiles')
+        .update({ last_login: new Date().toISOString() })
+        .eq('id', userId)
+    } catch (err) {
+      console.error('fetchProfile error:', err)
+    }
   }, [])
 
   const refreshProfile = useCallback(async () => {
@@ -108,11 +112,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (event === 'SIGNED_IN' && session?.user) {
           await fetchProfile(session.user.id)
+          setInitialized(true)
         } else if (event === 'SIGNED_OUT') {
           setProfile(null)
           setPreferences(null)
-        } else if (event === 'TOKEN_REFRESHED') {
-          // Token silently refreshed — no action needed
+          setInitialized(true)
         }
       }
     )
