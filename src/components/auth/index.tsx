@@ -12,7 +12,7 @@ interface LoginPageProps {
 
 export function LoginPage({ onSuccess }: LoginPageProps) {
   const { signIn, loading, user } = useAuth()
-  const [mode, setMode] = useState<'login' | 'forgot'>('login')
+  const [mode, setMode] = useState<'login' | 'signup' | 'forgot'>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -94,8 +94,25 @@ export function LoginPage({ onSuccess }: LoginPageProps) {
           </p>
         </div>
 
-        {mode === 'login' ? (
-          <form onSubmit={handleLogin}>
+        {/* Login / Sign Up tabs */}
+        <div style={{ display: 'flex', background: 'rgba(255,255,255,0.06)', borderRadius: '10px', padding: '3px', marginBottom: '24px' }}>
+          {(['login', 'signup'] as const).map(tab => (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => setMode(tab)}
+              style={{
+                flex: 1, padding: '8px', border: 'none', borderRadius: '8px', cursor: 'pointer',
+                fontFamily: 'inherit', fontSize: '.82rem', fontWeight: 600,
+                background: mode === tab ? 'rgba(56,189,248,0.2)' : 'transparent',
+                color: mode === tab ? '#38bdf8' : 'rgba(125,211,252,0.5)',
+                transition: 'all .2s',
+              }}
+            >{tab === 'login' ? 'Sign In' : 'Sign Up'}</button>
+          ))}
+        </div>
+
+        {mode === 'login' ? (          <form onSubmit={handleLogin}>
             <div style={{ marginBottom: '16px' }}>
               <label style={labelStyle}>Email Address</label>
               <input
@@ -182,6 +199,8 @@ export function LoginPage({ onSuccess }: LoginPageProps) {
               {loading ? '⏳ Signing in…' : 'Sign In →'}
             </button>
           </form>
+        ) : mode === 'signup' ? (
+          <SignUpPage onSuccess={() => setMode('login')} />
         ) : (
           <ForgotPasswordForm onBack={() => setMode('login')} />
         )}
@@ -413,7 +432,7 @@ export function RoleGuard({ permission, roles, children, fallback = null }: Role
 // src/components/auth/SignUpPage.tsx
 // ============================================================
 
-export function SignUpPage() {
+export function SignUpPage({ onSuccess }: { onSuccess?: () => void }) {
   const { signUp, loading } = useAuth()
   const [formData, setFormData] = useState({
     email: '', password: '', confirmPassword: '',
@@ -455,19 +474,22 @@ export function SignUpPage() {
   }
 
   if (success) return (
-    <div style={{ textAlign: 'center', padding: '48px 24px', color: '#fff' }}>
+    <div style={{ textAlign: 'center', padding: '24px 0' }}>
       <div style={{ fontSize: '3rem', marginBottom: '16px' }}>✅</div>
-      <h2>Account Created</h2>
-      <p style={{ color: '#7dd3fc' }}>
+      <h2 style={{ color: '#fff', fontSize: '1rem', marginBottom: '8px' }}>Account Created</h2>
+      <p style={{ color: '#7dd3fc', fontSize: '.82rem', marginBottom: '20px' }}>
         Check your email to confirm your account, then sign in.
       </p>
+      <button onClick={() => onSuccess?.()} style={{ ...backBtnStyle }}>← Back to Sign In</button>
     </div>
   )
 
   const field = (key: keyof typeof formData, label: string, type = 'text', required = true) => (
     <div style={{ marginBottom: '14px' }}>
-      <label style={labelStyle}>{label}{required && <span style={{ color: '#f43f5e' }}> *</span>}</label>
+      <label htmlFor={`signup-${key}`} style={labelStyle}>{label}{required && <span style={{ color: '#f43f5e' }}> *</span>}</label>
       <input
+        id={`signup-${key}`}
+        name={key}
         type={type}
         value={formData[key] as string}
         onChange={e => setFormData(p => ({ ...p, [key]: e.target.value }))}
@@ -488,8 +510,10 @@ export function SignUpPage() {
       {field('organization', 'Organization / Ministry', 'text', false)}
 
       <div style={{ marginBottom: '14px' }}>
-        <label style={labelStyle}>Province</label>
+        <label htmlFor="signup-province" style={labelStyle}>Province</label>
         <select
+          id="signup-province"
+          name="province"
           value={formData.province}
           onChange={e => setFormData(p => ({ ...p, province: e.target.value }))}
           style={{ ...inputStyle, cursor: 'pointer' }}
