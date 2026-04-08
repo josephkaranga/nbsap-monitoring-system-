@@ -79,7 +79,11 @@ export function DashboardShell({ activeTab, onTabChange, children }: Props) {
   }, [])
 
   // Filter nav items by role
+  const isViewer = profile?.role === 'viewer'
+  const VIEWER_ALLOWED_TABS: TabId[] = ['dashboard', 'indicators', 'targets22', 'map']
+
   const visibleNav = NAV_ITEMS.filter(item => {
+    if (isViewer && !VIEWER_ALLOWED_TABS.includes(item.id)) return false
     if (!item.roles) return true
     return profile ? item.roles.includes(profile.role) : false
   })

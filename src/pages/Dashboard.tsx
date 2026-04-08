@@ -169,6 +169,7 @@ NBSAP Q1 2026 LIVE DATA:
   }, [indStats, stats, distStats, riskStats, filterPeriod])
 
   const loading = reportsLoading || indLoading || distLoading
+  const isViewer = profile?.role === 'viewer'
 
   const TREND_DATA = [72, 74, 75, 77, 78, 79, 80, 81, 82, 83, 84, 85]
   const toolIcons: Record<string, string> = {
@@ -177,6 +178,29 @@ NBSAP Q1 2026 LIVE DATA:
 
   return (
     <div>
+      {/* Viewer welcome banner */}
+      {isViewer && (
+        <div style={{
+          background: 'linear-gradient(135deg,#e0f2fe,#f0f9ff)',
+          borderLeft: '4px solid #0ea5e9',
+          borderRadius: '12px', padding: '16px 20px',
+          marginBottom: '20px', display: 'flex', gap: '14px', alignItems: 'flex-start',
+        }}>
+          <span style={{ fontSize: '1.5rem' }}>👁</span>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: '.88rem', color: '#0369a1', marginBottom: '4px' }}>Public Access Mode</div>
+            <div style={{ fontSize: '.78rem', color: '#475569', lineHeight: 1.5 }}>
+              You are viewing the public version of the NBSAP Monitoring Dashboard.
+              Headline indicators, national summaries, and maps are visible.
+              Data entry, exports, and detailed analytics require Institutional or Decision-Maker access.
+            </div>
+            <div style={{ fontSize: '.68rem', color: '#0369a1', fontFamily: "'DM Mono',monospace", marginTop: '6px' }}>
+              🔒 No download or export capabilities in public mode
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Date filter */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: '10px',
@@ -212,7 +236,8 @@ NBSAP Q1 2026 LIVE DATA:
         >↻ Refresh</button>
       </div>
 
-      {/* AI Narrative panel */}
+      {/* AI Narrative panel — hidden for viewers */}
+      {!isViewer && (
       <div style={{
         background: 'linear-gradient(135deg,#0f2744,#1e3a5f)',
         borderRadius: '14px', padding: '20px 24px',
@@ -253,6 +278,7 @@ NBSAP Q1 2026 LIVE DATA:
           Powered by Claude · Data from Supabase · {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
         </div>
       </div>
+      )}
 
       {/* Metric cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '16px', marginBottom: '24px' }}>
@@ -387,8 +413,8 @@ NBSAP Q1 2026 LIVE DATA:
         </div>
       </div>
 
-      {/* Live toolkit stats */}
-      {stats && stats.total > 0 && (
+      {/* Live toolkit stats — hidden for viewers */}
+      {!isViewer && stats && stats.total > 0 && (
         <div style={{ background: '#fff', borderRadius: '14px', border: '1px solid #e2e8f0', padding: '18px', marginBottom: '24px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
             <h3 style={{ fontSize: '.9rem', fontWeight: 700, margin: 0 }}>📡 Live Toolkit Data</h3>
@@ -436,7 +462,8 @@ NBSAP Q1 2026 LIVE DATA:
         </div>
       )}
 
-      {/* Recommendations */}
+      {/* Recommendations — hidden for viewers */}
+      {!isViewer && (
       <div style={{ background: '#fff', borderRadius: '14px', border: '1px solid #e2e8f0', borderLeft: '4px solid #8b5cf6', padding: '18px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
           <h3 style={{ fontSize: '.9rem', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -480,6 +507,7 @@ NBSAP Q1 2026 LIVE DATA:
           })
         )}
       </div>
+      )}
     </div>
   )
 }
