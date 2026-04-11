@@ -69,19 +69,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // ── Fetch profile + preferences ────────────────────────
   const fetchProfile = useCallback(async (userId: string) => {
     try {
+      // 5s timeout on profile fetch to prevent hanging
+      const timeout = new Promise<null>(resolve => setTimeout(() => resolve(null), 5000))
       const [profileRes, prefsRes] = await Promise.all([
-        supabase.from('profiles').select('*').eq('id', userId).single(),
-        supabase.from('user_preferences').select('*').eq('user_id', userId).single(),
+        Promise.race([supabase.from('profiles').select('*').eq('id', userId).single(), timeout]),
+        Promise.race([supabase.from('user_preferences').select('*').eq('user_id', userId).single(), timeout]),
       ])
 
-      if (profileRes.data) setProfile(profileRes.data)
-      if (prefsRes.data) setPreferences(prefsRes.data)
+      if (profileRes && 'data' in profileRes && profileRes.data) setProfile(profileRes.data)
+      if (prefsRes && 'data' in prefsRes && prefsRes.data) setPreferences(prefsRes.data)
 
-      // Update last_login (non-blocking)
-      supabase
-        .from('profiles')
-        .update({ last_login: new Date().toISOString() })
-        .eq('id', userId)
+      // Update last_login (non-blocking, fire and forget)
+      supabase.from('profiles').update({ last_login: new Date().toISOString() }).eq('id', userId)
     } catch (err) {
       console.error('fetchProfile error:', err)
     }
@@ -93,15 +92,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // ── Bootstrap auth state ───────────────────────────────
   useEffect(() => {
-    // Get initial session
+    // Hard 8s timeout — always resolve initialized no matter what
+    const safetyTimer = setTimeout(() => setInitialized(true), 8000)
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
       setUser(session?.user ?? null)
       if (session?.user) {
-        fetchProfile(session.user.id).finally(() => setInitialized(true))
+        fetchProfile(session.user.id).finally(() => {
+          clearTimeout(safetyTimer)
+          setInitialized(true)
+        })
       } else {
+        clearTimeout(safetyTimer)
         setInitialized(true)
       }
+    }).catch(() => {
+      clearTimeout(safetyTimer)
+      setInitialized(true)
     })
 
     // Listen for auth changes
