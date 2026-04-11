@@ -35,11 +35,11 @@ export type TabId =
 function AppInner() {
   const { profile, initialized } = useAuth()
   const [activeTab, setActiveTab] = React.useState<TabId>('dashboard')
+  const [linkedIndicatorId, setLinkedIndicatorId] = React.useState<string | null>(null)
 
   // Handle OAuth callback
   useEffect(() => {
     if (window.location.pathname === '/auth/callback') {
-      // handled by Supabase PKCE flow — redirect to dashboard
       window.history.replaceState({}, '', '/')
     }
   }, [])
@@ -47,14 +47,19 @@ function AppInner() {
   if (!initialized) return <FullPageLoader />
   if (!profile) return <LoginPage onSuccess={() => setActiveTab('dashboard')} />
 
-  const switchTab = (tab: TabId) => setActiveTab(tab)
+  const switchTab = (tab: TabId) => { setActiveTab(tab); setLinkedIndicatorId(null) }
+
+  const goToIndicator = (indicatorId: string) => {
+    setLinkedIndicatorId(indicatorId)
+    setActiveTab('indicators')
+  }
 
   return (
     <DashboardShell activeTab={activeTab} onTabChange={switchTab}>
       <Suspense fallback={<TabLoader />}>
         {activeTab === 'dashboard'         && <Dashboard />}
-        {activeTab === 'indicators'        && <Indicators />}
-        {activeTab === 'targets22'         && <Targets22 />}
+        {activeTab === 'indicators'        && <Indicators linkedIndicatorId={linkedIndicatorId} onClearLink={() => setLinkedIndicatorId(null)} />}
+        {activeTab === 'targets22'         && <Targets22 onViewIndicator={goToIndicator} />}
         {activeTab === 'adaptive-mgmt'     && <AdaptiveMgmt />}
         {activeTab === 'reporting-toolkit' && (
           <ProtectedRoute requiredRoles={['admin','district_officer','sector_officer']}>

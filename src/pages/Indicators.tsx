@@ -1,13 +1,26 @@
 // src/pages/Indicators.tsx
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useIndicators } from '../hooks/useData'
 import type { IndicatorTier, IndicatorStatus, Indicator } from '../types/database'
 
-export default function Indicators() {
+interface Props {
+  linkedIndicatorId?: string | null
+  onClearLink?: () => void
+}
+
+export default function Indicators({ linkedIndicatorId, onClearLink }: Props) {
   const [tierFilter, setTierFilter] = useState<IndicatorTier | undefined>(undefined)
   const [search, setSearch] = useState('')
   const [selectedIndicator, setSelectedIndicator] = useState<Indicator | null>(null)
   const { indicators, indStats, loading } = useIndicators({ tier: tierFilter, search })
+
+  // Auto-open modal when navigated from Targets22
+  useEffect(() => {
+    if (linkedIndicatorId && indicators.length > 0) {
+      const ind = indicators.find(i => i.id === linkedIndicatorId)
+      if (ind) { setSelectedIndicator(ind); onClearLink?.() }
+    }
+  }, [linkedIndicatorId, indicators, onClearLink])
 
   const tierColors: Record<IndicatorTier, { bg: string; text: string; border: string }> = {
     headline: { bg: '#dcfce7', text: '#166534', border: '#bbf7d0' },
