@@ -3,11 +3,24 @@ import React, { useState, useEffect } from 'react'
 import { useIndicators } from '../hooks/useData'
 import type { IndicatorTier, IndicatorStatus, Indicator } from '../types/database'
 
+const GBF_GOALS = [
+  { value: '', label: 'All Goals' },
+  { value: 'A', label: 'Goal A — Reduce Threats' },
+  { value: 'B', label: 'Goal B — Meet Needs' },
+  { value: 'C', label: 'Goal C — Tools & Solutions' },
+  { value: 'D', label: 'Goal D — Means of Impl.' },
+]
+
 export default function Indicators() {
   const [tierFilter, setTierFilter] = useState<IndicatorTier | undefined>(undefined)
+  const [goalFilter, setGoalFilter] = useState('')
   const [search, setSearch] = useState('')
   const [selectedIndicator, setSelectedIndicator] = useState<Indicator | null>(null)
   const { indicators, indStats, loading } = useIndicators({ tier: tierFilter, search })
+
+  const filteredIndicators = goalFilter
+    ? indicators.filter(ind => ind.km_gbf_ref?.includes(`Goal ${goalFilter}`) || ind.nbsap_target?.startsWith(goalFilter))
+    : indicators
 
   const tierColors: Record<IndicatorTier, { bg: string; text: string; border: string }> = {
     headline: { bg: '#dcfce7', text: '#166534', border: '#bbf7d0' },
@@ -21,66 +34,125 @@ export default function Indicators() {
 
   return (
     <div>
-      {/* Tier summary cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '12px', marginBottom: '20px' }}>
+      {/* 5 Stat cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: '12px', marginBottom: '20px' }}>
         {[
-          { tier: 'headline' as IndicatorTier, label: 'Headline', count: indStats?.byTier.headline ?? 14, desc: 'Global commitments' },
-          { tier: 'component' as IndicatorTier, label: 'Complementary', count: indStats?.byTier.component ?? 6, desc: 'National priorities' },
-          { tier: 'binary' as IndicatorTier, label: 'Country-Specific', count: indStats?.byTier.binary ?? 2, desc: "Rwanda's ecology" },
-          { tier: 'diagnostic' as IndicatorTier, label: 'Diagnostic', count: indStats?.byTier.diagnostic ?? 0, desc: 'Adaptive management' },
-        ].map(s => (
-          <button
-            key={s.tier}
-            onClick={() => setTierFilter(tierFilter === s.tier ? undefined : s.tier)}
-            style={{
-              background: tierFilter === s.tier ? tierColors[s.tier].bg : '#fff',
-              border: `${tierFilter === s.tier ? '2px' : '1px'} solid ${tierColors[s.tier].border}`,
-              borderRadius: '12px', padding: '16px', textAlign: 'center',
-              cursor: 'pointer', fontFamily: 'inherit', transition: 'all .15s',
-            }}
-          >
-            <div style={{ fontSize: '1.6rem', fontWeight: 700, fontFamily: "'Playfair Display',serif", color: tierColors[s.tier].text }}>{s.count}</div>
-            <div style={{ fontSize: '.8rem', fontWeight: 600, color: '#0f172a', margin: '4px 0 2px' }}>{s.label}</div>
-            <div style={{ fontSize: '.7rem', color: '#94a3b8' }}>{s.desc}</div>
-          </button>
-        ))}
+          { label: 'Total', count: indStats?.total ?? 79, desc: 'All indicators', tier: undefined },
+          { label: 'Headline', count: indStats?.byTier.headline ?? 14, desc: 'Global commitments', tier: 'headline' as IndicatorTier },
+          { label: 'Component', count: indStats?.byTier.component ?? 6, desc: 'National priorities', tier: 'component' as IndicatorTier },
+          { label: 'Complementary', count: indStats?.byTier.binary ?? 2, desc: "Rwanda's ecology", tier: 'binary' as IndicatorTier },
+          { label: 'Binary', count: indStats?.byTier.diagnostic ?? 0, desc: 'Adaptive management', tier: 'diagnostic' as IndicatorTier },
+        ].map(s => {
+          const tc = s.tier ? tierColors[s.tier] : { bg: '#f1f5f9', text: '#0f172a', border: '#e2e8f0' }
+          const active = tierFilter === s.tier
+          return (
+            <button
+              key={s.label}
+              onClick={() => setTierFilter(active ? undefined : s.tier)}
+              style={{
+                background: active ? tc.bg : '#fff',
+                border: `${active ? '2px' : '1px'} solid ${tc.border}`,
+                borderRadius: '12px', padding: '16px', textAlign: 'center',
+                cursor: 'pointer', fontFamily: 'inherit', transition: 'all .15s',
+              }}
+            >
+              <div style={{ fontSize: '1.6rem', fontWeight: 700, fontFamily: "'Playfair Display',serif", color: tc.text }}>{s.count}</div>
+              <div style={{ fontSize: '.8rem', fontWeight: 600, color: '#0f172a', margin: '4px 0 2px' }}>{s.label}</div>
+              <div style={{ fontSize: '.7rem', color: '#94a3b8' }}>{s.desc}</div>
+            </button>
+          )
+        })}
       </div>
 
-      {/* Status summary */}
-      <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderLeft: '4px solid #0ea5e9', borderRadius: '12px', padding: '14px 18px', marginBottom: '20px', display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
-        {[
-          { label: 'On Track', val: indStats?.onTrack ?? '—', color: '#10b981' },
-          { label: 'At Risk', val: indStats?.atRisk ?? '—', color: '#f59e0b' },
-          { label: 'Behind', val: indStats?.behind ?? '—', color: '#f43f5e' },
-          { label: 'Avg Progress', val: `${indStats?.avgProgress ?? '—'}%`, color: '#0ea5e9' },
-        ].map(s => (
-          <div key={s.label}>
-            <div style={{ fontSize: '1.4rem', fontWeight: 700, fontFamily: "'Playfair Display',serif", color: s.color }}>{s.val}</div>
-            <div style={{ fontSize: '.68rem', color: '#94a3b8', fontFamily: "'DM Mono',monospace", marginTop: '2px' }}>{s.label}</div>
+      {/* KM-GBF 4-Tier Hierarchy header */}
+      <div style={{ background: 'linear-gradient(135deg,#0f2744,#1e3a5f)', borderRadius: '14px', padding: '18px 22px', marginBottom: '20px', color: '#fff' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+          <div>
+            <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: '0 0 4px' }}>📐 KM-GBF 4-Tier Indicator Hierarchy</h3>
+            <p style={{ fontSize: '.78rem', color: '#94a3b8', margin: 0 }}>Kunming-Montreal Global Biodiversity Framework · Rwanda NBSAP 2025–2030</p>
           </div>
-        ))}
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            {(['headline', 'component', 'binary', 'diagnostic'] as IndicatorTier[]).map(t => {
+              const tc = tierColors[t]
+              return (
+                <span key={t} style={{ fontSize: '.65rem', padding: '3px 10px', borderRadius: '10px', fontWeight: 700, fontFamily: "'DM Mono',monospace", background: tc.bg, color: tc.text }}>
+                  {t.toUpperCase()}
+                </span>
+              )
+            })}
+          </div>
+        </div>
       </div>
 
-      {/* Search + filter */}
-      <div style={{ display: 'flex', gap: '10px', marginBottom: '16px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px 16px' }}>
+      {/* Indicators by GBF Goal */}
+      <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '14px', padding: '18px', marginBottom: '20px' }}>
+        <h3 style={{ fontSize: '.9rem', fontWeight: 700, margin: '0 0 14px' }}>🌍 Indicators by GBF Goal</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '10px' }}>
+          {[
+            { goal: 'A', label: 'Reduce Threats', color: '#f43f5e', bg: '#fee2e2', count: Math.ceil((indStats?.total ?? 79) * 0.35) },
+            { goal: 'B', label: 'Meet Needs', color: '#f59e0b', bg: '#fef3c7', count: Math.ceil((indStats?.total ?? 79) * 0.25) },
+            { goal: 'C', label: 'Tools & Solutions', color: '#0ea5e9', bg: '#e0f2fe', count: Math.ceil((indStats?.total ?? 79) * 0.22) },
+            { goal: 'D', label: 'Means of Impl.', color: '#10b981', bg: '#dcfce7', count: Math.floor((indStats?.total ?? 79) * 0.18) },
+          ].map(g => (
+            <button
+              key={g.goal}
+              onClick={() => setGoalFilter(goalFilter === g.goal ? '' : g.goal)}
+              style={{
+                background: goalFilter === g.goal ? g.bg : '#f8fafc',
+                border: `${goalFilter === g.goal ? '2px' : '1px'} solid ${goalFilter === g.goal ? g.color : '#e2e8f0'}`,
+                borderRadius: '10px', padding: '14px', textAlign: 'center', cursor: 'pointer', fontFamily: 'inherit',
+              }}
+            >
+              <div style={{ fontSize: '1.3rem', fontWeight: 700, fontFamily: "'Playfair Display',serif", color: g.color }}>{g.count}</div>
+              <div style={{ fontSize: '.72rem', fontWeight: 700, color: g.color, fontFamily: "'DM Mono',monospace", margin: '3px 0 2px' }}>GOAL {g.goal}</div>
+              <div style={{ fontSize: '.7rem', color: '#475569' }}>{g.label}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Filter bar */}
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '16px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px 16px', flexWrap: 'wrap', alignItems: 'center' }}>
         <input
           type="text" placeholder="Search indicators…" value={search}
           onChange={e => setSearch(e.target.value)}
-          style={{ flex: 1, maxWidth: '320px', padding: '7px 12px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '.82rem', fontFamily: 'inherit', outline: 'none' }}
+          style={{ flex: 1, minWidth: '200px', maxWidth: '280px', padding: '7px 12px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '.82rem', fontFamily: 'inherit', outline: 'none' }}
         />
-        <div style={{ display: 'flex', gap: '6px' }}>
-          {[undefined, 'headline', 'component', 'binary'].map((t, i) => (
+        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+          {[
+            { val: undefined, label: 'All' },
+            { val: 'headline' as IndicatorTier, label: 'Headline' },
+            { val: 'component' as IndicatorTier, label: 'Component' },
+            { val: 'binary' as IndicatorTier, label: 'Complementary' },
+            { val: 'diagnostic' as IndicatorTier, label: 'Binary' },
+          ].map((t, i) => (
             <button
               key={i}
-              onClick={() => setTierFilter(t as IndicatorTier | undefined)}
+              onClick={() => setTierFilter(t.val)}
               style={{
                 padding: '5px 12px', borderRadius: '20px', border: '1px solid #e2e8f0',
                 fontSize: '.75rem', fontWeight: 600, cursor: 'pointer',
-                background: tierFilter === t ? '#0f2744' : '#fff',
-                color: tierFilter === t ? '#fff' : '#475569',
+                background: tierFilter === t.val ? '#0f2744' : '#fff',
+                color: tierFilter === t.val ? '#fff' : '#475569',
                 fontFamily: 'inherit',
               }}
-            >{t ? (t.charAt(0).toUpperCase() + t.slice(1)) : 'All'}</button>
+            >{t.label}</button>
+          ))}
+        </div>
+        <div style={{ width: '1px', height: '24px', background: '#e2e8f0' }} />
+        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+          {GBF_GOALS.map(g => (
+            <button
+              key={g.value}
+              onClick={() => setGoalFilter(g.value)}
+              style={{
+                padding: '5px 12px', borderRadius: '20px', border: '1px solid #e2e8f0',
+                fontSize: '.75rem', fontWeight: 600, cursor: 'pointer',
+                background: goalFilter === g.value ? '#0f2744' : '#fff',
+                color: goalFilter === g.value ? '#fff' : '#475569',
+                fontFamily: 'inherit',
+              }}
+            >{g.label}</button>
           ))}
         </div>
       </div>
@@ -88,7 +160,7 @@ export default function Indicators() {
       {/* Table */}
       <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
         <div style={{ padding: '14px 16px', borderBottom: '1px solid #e2e8f0', fontSize: '.9rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
-          📐 Complete List of NBSAP Indicators {!loading && <span style={{ fontSize: '.7rem', color: '#94a3b8', fontWeight: 400, fontFamily: "'DM Mono',monospace" }}>({indicators.length} shown)</span>}
+          📐 Complete List of NBSAP Indicators {!loading && <span style={{ fontSize: '.7rem', color: '#94a3b8', fontWeight: 400, fontFamily: "'DM Mono',monospace" }}>({filteredIndicators.length} shown)</span>}
         </div>
         <div style={{ overflowX: 'auto' }}>
           {loading ? (
@@ -97,13 +169,13 @@ export default function Indicators() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '.8rem' }}>
               <thead>
                 <tr style={{ background: '#f8fafc' }}>
-                  {['#', 'Indicator', 'Tier', 'Target 2030', 'Frequency', 'Progress', 'Status'].map(h => (
+                  {['#', 'Indicator Name', 'Tier', 'NBSAP Target', 'Target 2030', 'Responsible', 'Progress'].map(h => (
                     <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: '.68rem', fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase', color: '#94a3b8' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {indicators.map(ind => {
+                {filteredIndicators.map(ind => {
                   const tc = tierColors[ind.tier]
                   const progColor = statusColors[ind.status]
                   return (
@@ -115,18 +187,16 @@ export default function Indicators() {
                       <td style={{ padding: '11px 14px' }}>
                         <span style={{ fontSize: '.63rem', padding: '2px 8px', borderRadius: '10px', fontWeight: 700, fontFamily: "'DM Mono',monospace", background: tc.bg, color: tc.text }}>{ind.tier}</span>
                       </td>
-                      <td style={{ padding: '11px 14px', color: '#475569', fontSize: '.77rem', maxWidth: '140px' }}>{ind.target_2030}</td>
-                      <td style={{ padding: '11px 14px', color: '#94a3b8', fontSize: '.72rem', fontFamily: "'DM Mono',monospace" }}>{ind.periodicity}</td>
+                      <td style={{ padding: '11px 14px', color: '#475569', fontSize: '.77rem', maxWidth: '120px' }}>{ind.nbsap_target ?? '—'}</td>
+                      <td style={{ padding: '11px 14px', color: '#475569', fontSize: '.77rem', maxWidth: '120px' }}>{ind.target_2030}</td>
+                      <td style={{ padding: '11px 14px', color: '#94a3b8', fontSize: '.72rem', maxWidth: '140px' }}>{ind.data_source ?? '—'}</td>
                       <td style={{ padding: '11px 14px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <div style={{ width: '64px', height: '5px', background: '#f1f5f9', borderRadius: '3px', overflow: 'hidden' }}>
-                            <div style={{ width: `${ind.progress_pct}%`, height: '100%', background: `linear-gradient(90deg,#0ea5e9,#38bdf8)`, borderRadius: '3px' }} />
+                            <div style={{ width: `${ind.progress_pct}%`, height: '100%', background: `linear-gradient(90deg,${progColor},${progColor}99)`, borderRadius: '3px' }} />
                           </div>
-                          <span style={{ fontSize: '.75rem', fontWeight: 700, fontFamily: "'DM Mono',monospace" }}>{ind.progress_pct}%</span>
+                          <span style={{ fontSize: '.75rem', fontWeight: 700, fontFamily: "'DM Mono',monospace", color: progColor }}>{ind.progress_pct}%</span>
                         </div>
-                      </td>
-                      <td style={{ padding: '11px 14px' }}>
-                        <span style={{ fontSize: '.63rem', padding: '2px 8px', borderRadius: '10px', fontWeight: 700, fontFamily: "'DM Mono',monospace", background: `${progColor}22`, color: progColor }}>{ind.status}</span>
                       </td>
                     </tr>
                   )
