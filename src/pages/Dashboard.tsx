@@ -1,276 +1,248 @@
-// src/pages/Dashboard.tsx
-import React, { useState, useEffect, useCallback } from 'react'
-import { useReports } from '../hooks/useData'
-import { useIndicators } from '../hooks/useData'
-import { useDistricts } from '../hooks/useData'
+import React, { useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
+import { useReports, useIndicators, useDistricts } from '../hooks/useData'
+import type { TabId } from '../App'
 
-const TOOLS = [
-  { id: 'T01', name: 'Institutional Progress', icon: '🏛️', color: '#0ea5e9' },
-  { id: 'T02', name: 'District Field Data', icon: '🗺️', color: '#10b981' },
-  { id: 'T03', name: 'Protected Areas', icon: '🌿', color: '#8b5cf6' },
-  { id: 'T04', name: 'Community Reports', icon: '👥', color: '#f59e0b' },
-  { id: 'T05', name: 'Finance & Budget', icon: '💰', color: '#0891b2' },
-  { id: 'T06', name: 'Private Sector ESG', icon: '🏢', color: '#059669' },
-  { id: 'T07', name: 'Research & Science', icon: '🔬', color: '#7c3aed' },
+interface Props { onSwitchTab: (tab: TabId) => void }
+
+const ACTIVITY = [
+  { icon: '✅', bg: '#dcfce7', msg: 'T02 District Report approved — Musanze', time: '2m ago' },
+  { icon: '📋', bg: '#dbeafe', msg: 'T01 Institutional Report submitted by MINEMA', time: '18m ago' },
+  { icon: '⚠️', bg: '#ffedd5', msg: 'Compliance alert: EIA missing for 3 projects', time: '1h ago' },
+  { icon: '🎯', bg: '#f3e8ff', msg: 'Forest cover indicator updated to 27.3%', time: '2h ago' },
+  { icon: '📊', bg: '#e0f2fe', msg: 'Q1 2025 dashboard report generated', time: '3h ago' },
 ]
 
-const NBSAP_TARGETS = [
-  { name: 'Forest Cover', current: '27%', target: '30%', pct: 90, color: '#10b981' },
-  { name: 'Wetland Restoration', current: '600', target: '1200 ha', pct: 50, color: '#0ea5e9' },
-  { name: 'Species Protection', current: '650', target: '800', pct: 81, color: '#8b5cf6' },
-  { name: 'Community Participation', current: '60%', target: '80%', pct: 75, color: '#f59e0b' },
-  { name: 'Water Quality', current: '80%', target: '90%', pct: 89, color: '#0891b2' },
-  { name: 'Policy Integration', current: '10', target: '15 plans', pct: 67, color: '#059669' },
+const PROGRESS_ITEMS = [
+  { label: 'Forest Cover', current: 27, target: 30, unit: '%', color: '#10b981' },
+  { label: 'Wetland Restoration', current: 600, target: 1200, unit: 'ha', color: '#38bdf8' },
+  { label: 'Species Protected', current: 650, target: 800, unit: '', color: '#6366f1' },
+  { label: 'Community Engagement', current: 60, target: 80, unit: '%', color: '#f59e0b' },
+  { label: 'Water Quality Index', current: 80, target: 90, unit: '%', color: '#0ea5e9' },
+  { label: 'Policy Integration', current: 10, target: 15, unit: '', color: '#8b5cf6' },
 ]
 
-const ACCESS_LAYERS = [
-  {
-    icon: '🌐', title: 'PUBLIC ACCESS',
-    desc: 'Headline indicators · National progress summaries · Maps & trends · Transparency & accountability',
-    color: '#0ea5e9', bg: '#e0f2fe',
-  },
-  {
-    icon: '🏛️', title: 'INSTITUTIONAL REPORTING',
-    desc: 'Ministries · Districts · Protected area authorities · Research institutions · Data entry & progress tracking',
-    color: '#10b981', bg: '#dcfce7',
-  },
-  {
-    icon: '📊', title: 'DECISION-MAKER ANALYTICS',
-    desc: 'REMA · Cabinet technical teams · Policy planners · Performance dashboards · Scenario modelling · Exportable reports',
-    color: '#8b5cf6', bg: '#f3e8ff',
-  },
-]
-
-export default function Dashboard() {
-  const { profile, isRole } = useAuth()
-  const isViewer = isRole('viewer')
-
-  const [period, setPeriod] = useState('Q1 2025')
-  const [aiNarrative, setAiNarrative] = useState<string | null>(null)
+export function Dashboard({ onSwitchTab }: Props) {
+  const { profile } = useAuth()
+  const { stats } = useReports()
+  const { indStats } = useIndicators()
+  const { distStats } = useDistricts()
+  const [aiText, setAiText] = useState('')
   const [aiLoading, setAiLoading] = useState(false)
+  const [chartType, setChartType] = useState<'line' | 'radar' | 'tier'>('line')
+  const [period, setPeriod] = useState('all')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
 
-  const { reports, stats, loading: reportsLoading } = useReports({ period })
-  const { indicators, indStats, loading: indLoading } = useIndicators()
-  const { districts, distStats, loading: distLoading } = useDistricts()
-
-  const totalReports = stats?.total ?? 1248
-  const activeDistricts = distStats?.active ?? 18
-  const totalDistricts = distStats?.total ?? 20
-  const complianceIssues = distStats?.complianceIssues ?? 5
-
-  // AI narrative generation
-  const generateNarrative = useCallback(async () => {
+  const generateInsight = async () => {
     setAiLoading(true)
+    setAiText('')
     try {
-      await new Promise(r => setTimeout(r, 1200))
-      setAiNarrative(
-        `Rwanda's biodiversity monitoring system shows strong progress in Q1 2025. Forest cover has reached 27% against a 30% target, with ${activeDistricts} of ${totalDistricts} districts actively reporting. Wetland restoration efforts have covered 600 of the 1,200 ha target. Species protection programmes are tracking at 81% completion. Community participation remains a key driver with 60% engagement. ${complianceIssues} compliance issues have been flagged for immediate attention. Overall system health is rated GOOD with ${totalReports.toLocaleString()} data submissions processed this period.`
-      )
+      const prompt = `You are an NBSAP biodiversity monitoring analyst for Rwanda. Generate a concise 3-sentence progress narrative for the NBSAP 2024-2030 dashboard. Current data: Forest cover 27% (target 30%), Wetland restoration 600ha (target 1200ha), 18/20 districts reporting, 5 compliance issues, 1,248 total submissions. Focus on achievements, gaps, and one key recommendation.`
+      const resp = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+          'x-api-key': import.meta.env.VITE_ANTHROPIC_API_KEY,
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 500,
+          messages: [{ role: 'user', content: prompt }]
+        })
+      })
+      const data = await resp.json()
+      setAiText(data.content?.[0]?.text ?? 'Unable to generate insight.')
+    } catch {
+      setAiText('AI insight unavailable. Check your API key configuration.')
     } finally {
       setAiLoading(false)
     }
-  }, [activeDistricts, totalDistricts, complianceIssues, totalReports])
-
-  useEffect(() => {
-    if (!reportsLoading && !distLoading) generateNarrative()
-  }, [reportsLoading, distLoading])
-
-  const recentActivity = [
-    { icon: '✅', text: 'T02 District Field Report approved — Kigali City', time: '2 min ago', color: '#10b981' },
-    { icon: '📋', text: 'T01 Institutional Progress submitted — REMA HQ', time: '14 min ago', color: '#0ea5e9' },
-    { icon: '⚠️', text: 'Compliance flag raised — Bugesera District', time: '1 hr ago', color: '#f59e0b' },
-    { icon: '🔬', text: 'T07 Research report uploaded — University of Rwanda', time: '3 hr ago', color: '#8b5cf6' },
-    { icon: '🌿', text: 'T03 Protected Area update — Nyungwe NP', time: '5 hr ago', color: '#059669' },
-  ]
-
-  const recommendations = [
-    { icon: '🚨', text: 'Wetland restoration pace needs acceleration — currently at 50% of 2025 milestone', level: 'High', color: '#f43f5e' },
-    { icon: '📊', text: 'Policy Integration tracking below target — engage Ministry of Environment', level: 'Medium', color: '#f59e0b' },
-    { icon: '✅', text: 'Forest Cover on track — maintain current reforestation programmes', level: 'Low', color: '#10b981' },
-  ]
+  }
 
   return (
     <div>
-      {/* Period filter */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
-        <span style={{ fontSize: '.78rem', fontWeight: 600, color: '#475569' }}>Reporting Period:</span>
-        {['Q1 2025', 'Q2 2025', 'Q3 2025', 'Q4 2025', 'Annual 2024'].map(p => (
-          <button
-            key={p}
-            onClick={() => setPeriod(p)}
-            style={{
-              padding: '5px 14px', borderRadius: '20px', border: '1px solid #e2e8f0',
-              fontSize: '.75rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
-              background: period === p ? '#0f2744' : '#fff',
-              color: period === p ? '#fff' : '#475569',
-            }}
-          >{p}</button>
-        ))}
+      {/* Date filter bar */}
+      <div className="date-filter-bar">
+        <label>Period</label>
+        <select value={period} onChange={e => setPeriod(e.target.value)}>
+          <option value="all">All Time</option>
+          <option value="q1-2025">Q1 2025</option>
+          <option value="q2-2025">Q2 2025</option>
+          <option value="q3-2025">Q3 2025</option>
+          <option value="q4-2025">Q4 2025</option>
+          <option value="q1-2026">Q1 2026</option>
+        </select>
+        <div className="date-filter-divider" />
+        <label>From</label>
+        <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+        <label>To</label>
+        <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+        <div className="date-filter-divider" />
+        <span className="date-filter-badge">● Live Data</span>
       </div>
 
-      {/* AI Narrative Panel */}
-      <div style={{ background: 'linear-gradient(135deg,#0f2744,#1e3a5f)', borderRadius: '14px', padding: '20px', marginBottom: '24px', color: '#fff' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '1.1rem' }}>🤖</span>
-            <span style={{ fontSize: '.85rem', fontWeight: 700 }}>AI Narrative Summary</span>
-            <span style={{ fontSize: '.62rem', padding: '2px 8px', borderRadius: '10px', background: 'rgba(56,189,248,.2)', color: '#38bdf8', fontWeight: 700, fontFamily: "'DM Mono',monospace" }}>LIVE</span>
+      {/* AI Narrative */}
+      <div className="ai-panel mb-6">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: '1.1rem' }}>✨</span>
+            <span style={{ fontWeight: 700, fontSize: '.9rem' }}>AI Progress Narrative</span>
+            <span style={{ fontSize: '.65rem', padding: '2px 7px', borderRadius: 10, background: 'rgba(56,189,248,.2)', color: '#7dd3fc', fontFamily: "'DM Mono',monospace" }}>Claude AI</span>
           </div>
-          <button
-            onClick={generateNarrative}
-            disabled={aiLoading}
-            style={{ padding: '5px 14px', borderRadius: '8px', border: '1px solid rgba(255,255,255,.2)', background: 'rgba(255,255,255,.1)', color: '#fff', fontSize: '.75rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
-          >{aiLoading ? '⏳ Generating…' : '🔄 Regenerate'}</button>
+          <button className="ai-gen-btn" onClick={generateInsight} disabled={aiLoading}>
+            {aiLoading ? <><span className="spinner" />Generating…</> : <>✨ Generate Insight</>}
+          </button>
         </div>
-        <p style={{ fontSize: '.83rem', lineHeight: 1.7, margin: 0, opacity: aiLoading ? .5 : 1, color: '#cbd5e1' }}>
-          {aiLoading ? 'Analysing biodiversity data and generating narrative…' : (aiNarrative ?? 'Loading narrative…')}
+        <p style={{ fontSize: '.83rem', color: 'rgba(255,255,255,.8)', lineHeight: 1.6, minHeight: 40 }}>
+          {aiText || 'Click "Generate Insight" to produce an AI-powered narrative summary of current NBSAP progress, gaps, and recommendations based on live dashboard data.'}
         </p>
       </div>
 
       {/* Metric cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '14px', marginBottom: '24px' }}>
-        {[
-          { icon: '🎯', label: 'Total Targets', value: indStats?.total ?? 22, sub: 'NBSAP indicators', color: '#0ea5e9', bg: '#e0f2fe' },
-          { icon: '📋', label: 'Data Submissions', value: totalReports.toLocaleString(), sub: `Period: ${period}`, color: '#10b981', bg: '#dcfce7' },
-          { icon: '🗺️', label: 'Active Districts', value: `${activeDistricts}/${totalDistricts}`, sub: 'Reporting this period', color: '#8b5cf6', bg: '#f3e8ff' },
-          { icon: '⚠️', label: 'Compliance Issues', value: complianceIssues, sub: 'Require attention', color: '#f43f5e', bg: '#fee2e2' },
-        ].map(c => (
-          <div key={c.label} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '14px', padding: '18px', borderTop: `3px solid ${c.color}` }}>
-            <div style={{ fontSize: '1.4rem', marginBottom: '8px' }}>{c.icon}</div>
-            <div style={{ fontSize: '1.7rem', fontWeight: 700, fontFamily: "'Playfair Display',serif", color: '#0f172a' }}>{c.value}</div>
-            <div style={{ fontSize: '.78rem', fontWeight: 600, color: '#0f172a', margin: '4px 0 2px' }}>{c.label}</div>
-            <div style={{ fontSize: '.7rem', color: '#94a3b8' }}>{c.sub}</div>
-          </div>
-        ))}
+      <div className="metrics-grid mb-6">
+        <div className="metric-card mc-navy">
+          <div className="metric-label">Total Targets</div>
+          <div className="metric-value">22</div>
+          <div className="metric-sub">KM-GBF Aligned</div>
+          <span className="metric-icon">🎯</span>
+        </div>
+        <div className="metric-card mc-emerald">
+          <div className="metric-label">Data Submissions</div>
+          <div className="metric-value">{stats?.total ?? 1248}</div>
+          <div className="metric-sub">↑ 12% from last month</div>
+          <span className="metric-icon">📋</span>
+        </div>
+        <div className="metric-card mc-sky">
+          <div className="metric-label">Active Districts</div>
+          <div className="metric-value">{distStats ? `${distStats.submitted}/${distStats.total}` : '18/20'}</div>
+          <div className="metric-sub">Reporting this quarter</div>
+          <span className="metric-icon">🗺️</span>
+        </div>
+        <div className="metric-card mc-rose">
+          <div className="metric-label">Compliance Issues</div>
+          <div className="metric-value">5</div>
+          <div className="metric-sub">Requires attention</div>
+          <span className="metric-icon">⚖️</span>
+        </div>
       </div>
 
       {/* Access Layers */}
-      {!isViewer && (
-        <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '14px', padding: '18px', marginBottom: '24px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-            <h3 style={{ fontSize: '.9rem', fontWeight: 700, margin: 0 }}>🔐 Dashboard Access Layers</h3>
-            <span style={{ fontSize: '.65rem', padding: '3px 8px', borderRadius: '10px', background: '#f1f5f9', color: '#475569', fontWeight: 700, fontFamily: "'DM Mono',monospace" }}>Role-Based</span>
+      <div className="mb-6">
+        <div className="section-header">
+          <div className="section-title">🔐 Dashboard Access Layers</div>
+        </div>
+        <div className="grid-3">
+          {[
+            { icon: '🌍', title: 'PUBLIC ACCESS', desc: 'Aggregated national biodiversity indicators, target progress, and public reports', color: '#10b981', bg: '#f0fdf4', border: '#bbf7d0' },
+            { icon: '🏛️', title: 'INSTITUTIONAL REPORTING', desc: 'T01–T07 toolkit submissions, district data, verification queue, compliance tracking', color: '#0ea5e9', bg: '#f0f9ff', border: '#bae6fd' },
+            { icon: '📊', title: 'DECISION-MAKER ANALYTICS', desc: 'AI narratives, risk register, adaptive management triggers, CBD reporting', color: '#6366f1', bg: '#faf5ff', border: '#e9d5ff' },
+          ].map(l => (
+            <div key={l.title} className="card card-hover" style={{ padding: 18, borderTop: `3px solid ${l.color}`, background: l.bg, borderColor: l.border }}>
+              <div style={{ fontSize: '1.5rem', marginBottom: 8 }}>{l.icon}</div>
+              <div style={{ fontWeight: 700, fontSize: '.78rem', color: l.color, letterSpacing: '.06em', marginBottom: 6 }}>{l.title}</div>
+              <div style={{ fontSize: '.75rem', color: '#475569', lineHeight: 1.5 }}>{l.desc}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Live Toolkit Stats */}
+      <div className="card mb-6" style={{ padding: 20 }}>
+        <div className="section-header">
+          <div className="section-title">📡 Live Toolkit Data <span className="section-badge badge-live">LIVE</span></div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: 12 }}>
+          {[
+            { label: 'Toolkit Reports', value: '1,248', icon: '📋', color: '#0f2744' },
+            { label: 'Forest (ha)', value: '847,320', icon: '🌲', color: '#10b981' },
+            { label: 'Wetland (ha)', value: '600', icon: '💧', color: '#38bdf8' },
+            { label: 'Districts', value: '18/20', icon: '🗺️', color: '#6366f1' },
+            { label: 'Finance (RWF M)', value: '12,450', icon: '💰', color: '#f59e0b' },
+            { label: 'HWC Incidents', value: '23', icon: '🐘', color: '#f43f5e' },
+          ].map(s => (
+            <div key={s.label} style={{ textAlign: 'center', padding: '14px 8px', background: '#f8fafc', borderRadius: 10, border: '1px solid #e2e8f0' }}>
+              <div style={{ fontSize: '1.4rem', marginBottom: 4 }}>{s.icon}</div>
+              <div style={{ fontWeight: 700, fontSize: '1.1rem', color: s.color, fontFamily: "'Playfair Display',serif" }}>{s.value}</div>
+              <div style={{ fontSize: '.65rem', color: '#94a3b8', marginTop: 2 }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Charts + Activity */}
+      <div className="grid-2-1 mb-6">
+        <div className="card" style={{ padding: 20 }}>
+          <div className="section-header">
+            <div className="section-title">📈 Indicator Progress Trends</div>
+            <div style={{ display: 'flex', gap: 4 }}>
+              {(['line', 'radar', 'tier'] as const).map(t => (
+                <button key={t} onClick={() => setChartType(t)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #e2e8f0', background: chartType === t ? '#0f2744' : '#fff', color: chartType === t ? '#fff' : '#475569', fontSize: '.72rem', fontWeight: 600, cursor: 'pointer' }}>
+                  {t === 'line' ? 'Line' : t === 'radar' ? 'Radar' : 'By Tier'}
+                </button>
+              ))}
+            </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '12px' }}>
-            {ACCESS_LAYERS.map(l => (
-              <div key={l.title} style={{ background: l.bg, borderRadius: '10px', padding: '14px', borderLeft: `3px solid ${l.color}` }}>
-                <div style={{ fontSize: '1.2rem', marginBottom: '6px' }}>{l.icon}</div>
-                <div style={{ fontWeight: 700, fontSize: '.72rem', color: l.color, fontFamily: "'DM Mono',monospace", letterSpacing: '.06em', marginBottom: '5px' }}>{l.title}</div>
-                <div style={{ fontSize: '.72rem', color: '#475569', lineHeight: 1.5 }}>{l.desc}</div>
-              </div>
-            ))}
+          <div style={{ height: 200, background: 'linear-gradient(135deg,#f0f9ff,#e0f2fe)', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: '.8rem', border: '1px dashed #bae6fd' }}>
+            📊 {chartType === 'line' ? 'Line Chart' : chartType === 'radar' ? 'Radar Chart' : 'Tier Breakdown'} — Chart.js integration pending
           </div>
         </div>
-      )}
-
-      {/* NBSAP Target Progress */}
-      <div style={{ background: '#fff', borderRadius: '14px', border: '1px solid #e2e8f0', padding: '18px', marginBottom: '24px' }}>
-        <h3 style={{ fontSize: '.9rem', fontWeight: 700, margin: '0 0 16px' }}>🎯 NBSAP Target Progress (2025–2030)</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-          {NBSAP_TARGETS.map(t => (
-            <div key={t.name} style={{ background: '#f8fafc', borderRadius: '10px', padding: '12px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '.78rem', marginBottom: '6px' }}>
-                <span style={{ fontWeight: 600 }}>{t.name}</span>
-                <span style={{ color: '#94a3b8', fontFamily: "'DM Mono',monospace", fontSize: '.72rem' }}>{t.current} / {t.target}</span>
-              </div>
-              <div style={{ height: '7px', background: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
-                <div style={{ width: `${t.pct}%`, height: '100%', background: t.color, borderRadius: '4px', transition: 'width .8s' }} />
+        <div className="card" style={{ padding: 20 }}>
+          <div className="section-header">
+            <div className="section-title">🕐 Recent Activity</div>
+          </div>
+          {ACTIVITY.map((a, i) => (
+            <div key={i} className="activity-item">
+              <div className="activity-icon" style={{ background: a.bg }}>{a.icon}</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: '.78rem', fontWeight: 500, color: '#0f172a' }}>{a.msg}</div>
+                <div style={{ fontSize: '.68rem', color: '#94a3b8', marginTop: 2 }}>{a.time}</div>
               </div>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Live Toolkit Data */}
-      <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '14px', padding: '18px', marginBottom: '24px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-          <h3 style={{ fontSize: '.9rem', fontWeight: 700, margin: 0 }}>🛠️ Live Toolkit Data</h3>
-          <span style={{ fontSize: '.62rem', padding: '2px 8px', borderRadius: '10px', background: '#dcfce7', color: '#166534', fontWeight: 700, fontFamily: "'DM Mono',monospace" }}>LIVE</span>
+      {/* Target Progress */}
+      <div className="card mb-6" style={{ padding: 20 }}>
+        <div className="section-header">
+          <div className="section-title">🎯 NBSAP Target Progress</div>
+          <button onClick={() => onSwitchTab('targets22')} style={{ fontSize: '.75rem', color: '#0ea5e9', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>View All 22 →</button>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: '10px' }}>
-          {TOOLS.map(tool => {
-            const count = stats?.byTool?.[tool.id] ?? Math.floor(Math.random() * 200 + 50)
+        <div className="grid-2">
+          {PROGRESS_ITEMS.map(p => {
+            const pct = Math.round((p.current / p.target) * 100)
             return (
-              <div key={tool.id} style={{ textAlign: 'center', padding: '14px 8px', background: '#f8fafc', borderRadius: '10px', borderTop: `3px solid ${tool.color}` }}>
-                <div style={{ fontSize: '1.3rem', marginBottom: '6px' }}>{tool.icon}</div>
-                <div style={{ fontSize: '1.1rem', fontWeight: 700, fontFamily: "'Playfair Display',serif", color: '#0f172a' }}>{count}</div>
-                <div style={{ fontSize: '.6rem', color: '#94a3b8', marginTop: '3px', lineHeight: 1.3 }}>{tool.name}</div>
-                <div style={{ fontSize: '.58rem', fontFamily: "'DM Mono',monospace", color: tool.color, fontWeight: 700, marginTop: '4px' }}>{tool.id}</div>
+              <div key={p.label} className="prog-row">
+                <div className="prog-header">
+                  <span className="prog-label">{p.label}</span>
+                  <span className="prog-value">{p.current}{p.unit} / {p.target}{p.unit}</span>
+                </div>
+                <div className="prog-track">
+                  <div className="prog-fill" style={{ width: `${pct}%`, background: p.color }} />
+                </div>
               </div>
             )
           })}
         </div>
       </div>
 
-      {/* Indicator Progress Trends */}
-      <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '14px', padding: '18px', marginBottom: '24px' }}>
-        <h3 style={{ fontSize: '.9rem', fontWeight: 700, margin: '0 0 16px' }}>📈 Indicator Progress Trends</h3>
-        <div style={{ display: 'flex', gap: '6px', alignItems: 'flex-end', height: '120px', padding: '0 4px' }}>
-          {(indLoading ? Array(12).fill(null) : indicators.slice(0, 12)).map((ind, i) => {
-            const pct = ind?.progress_pct ?? Math.floor(Math.random() * 80 + 20)
-            const color = pct >= 75 ? '#10b981' : pct >= 50 ? '#f59e0b' : '#f43f5e'
-            return (
-              <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                <div style={{ width: '100%', background: '#f1f5f9', borderRadius: '4px 4px 0 0', height: '100px', display: 'flex', alignItems: 'flex-end' }}>
-                  <div style={{ width: '100%', height: `${pct}%`, background: color, borderRadius: '4px 4px 0 0', transition: 'height .6s' }} />
-                </div>
-                <span style={{ fontSize: '.55rem', color: '#94a3b8', fontFamily: "'DM Mono',monospace" }}>{pct}%</span>
-              </div>
-            )
-          })}
-        </div>
-        <div style={{ display: 'flex', gap: '16px', marginTop: '12px', fontSize: '.7rem' }}>
-          {[{ color: '#10b981', label: 'On Track (≥75%)' }, { color: '#f59e0b', label: 'At Risk (50–74%)' }, { color: '#f43f5e', label: 'Behind (<50%)' }].map(l => (
-            <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <div style={{ width: '10px', height: '10px', borderRadius: '2px', background: l.color }} />
-              <span style={{ color: '#475569' }}>{l.label}</span>
+      {/* Recommendations */}
+      <div className="card" style={{ padding: 20, background: 'linear-gradient(135deg,#fefce8,#fef9c3)', border: '1px solid #fde68a' }}>
+        <div className="section-title" style={{ marginBottom: 12 }}>💡 System Recommendations</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+          {[
+            { icon: '🌿', text: 'Accelerate wetland restoration — currently at 50% of 2030 target', level: 'high' },
+            { icon: '📋', text: '2 districts (Gakenke, Rulindo) have not submitted Q1 reports', level: 'med' },
+            { icon: '⚖️', text: 'Review 5 open compliance issues before CBD reporting deadline', level: 'med' },
+          ].map((r, i) => (
+            <div key={i} style={{ padding: '10px 12px', borderRadius: 8, background: r.level === 'high' ? '#fef2f2' : '#fff7ed', border: `1px solid ${r.level === 'high' ? '#fecaca' : '#fed7aa'}`, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+              <span style={{ fontSize: '1rem' }}>{r.icon}</span>
+              <span style={{ fontSize: '.75rem', color: '#475569', lineHeight: 1.5 }}>{r.text}</span>
             </div>
           ))}
-        </div>
-      </div>
-
-      {/* Bottom grid: Recent Activity + Recommendations */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-        {/* Recent Activity */}
-        <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '14px', padding: '18px' }}>
-          <h3 style={{ fontSize: '.9rem', fontWeight: 700, margin: '0 0 14px' }}>🕐 Recent Activity</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {(reports.length > 0
-              ? reports.slice(0, 5).map(r => ({
-                  icon: r.status === 'approved' ? '✅' : r.status === 'rejected' ? '❌' : '📋',
-                  text: `${r.tool_name} ${r.status} — ${r.district?.name ?? r.institution ?? 'Unknown'}`,
-                  time: new Date(r.updated_at ?? r.created_at).toLocaleTimeString(),
-                  color: r.status === 'approved' ? '#10b981' : r.status === 'rejected' ? '#f43f5e' : '#0ea5e9',
-                }))
-              : recentActivity
-            ).map((a, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '8px', background: '#f8fafc', borderRadius: '8px' }}>
-                <span style={{ fontSize: '.9rem', marginTop: '1px' }}>{a.icon}</span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: '.78rem', color: '#0f172a', lineHeight: 1.4 }}>{a.text}</div>
-                  <div style={{ fontSize: '.65rem', color: '#94a3b8', fontFamily: "'DM Mono',monospace", marginTop: '2px' }}>{a.time}</div>
-                </div>
-                <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: a.color, marginTop: '5px', flexShrink: 0 }} />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* System Recommendations */}
-        <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '14px', padding: '18px' }}>
-          <h3 style={{ fontSize: '.9rem', fontWeight: 700, margin: '0 0 14px' }}>💡 System Recommendations</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {recommendations.map((r, i) => (
-              <div key={i} style={{ padding: '12px', background: '#f8fafc', borderRadius: '10px', borderLeft: `3px solid ${r.color}` }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                  <span>{r.icon}</span>
-                  <span style={{ fontSize: '.62rem', padding: '1px 7px', borderRadius: '8px', fontWeight: 700, fontFamily: "'DM Mono',monospace", background: `${r.color}22`, color: r.color }}>{r.level}</span>
-                </div>
-                <div style={{ fontSize: '.78rem', color: '#475569', lineHeight: 1.5 }}>{r.text}</div>
-              </div>
-            ))}
-          </div>
         </div>
       </div>
     </div>

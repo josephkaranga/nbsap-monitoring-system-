@@ -1,197 +1,178 @@
-// src/pages/DistrictMap.tsx
-// Real interactive map of Rwanda's 30 districts using Leaflet + GeoJSON
-
 import React, { useState } from 'react'
-import { MapContainer, TileLayer, GeoJSON } from 'react-leaflet'
-import 'leaflet/dist/leaflet.css'
-import type L from 'leaflet'
-import { useDistricts } from '../hooks/useData'
-import type { District } from '../types/database'
+import { DISTRICT_DATA } from '../data/constants'
 
-// Rwanda district GeoJSON — approximate boundaries (WGS84)
-const RWANDA_GEOJSON: GeoJSON.FeatureCollection = {
-  type: 'FeatureCollection',
-  features: [
-    // Kigali City
-    { type: 'Feature', properties: { name: 'Nyarugenge' }, geometry: { type: 'Polygon', coordinates: [[[30.04,-1.94],[30.07,-1.94],[30.07,-1.97],[30.04,-1.97],[30.04,-1.94]]] } },
-    { type: 'Feature', properties: { name: 'Gasabo' }, geometry: { type: 'Polygon', coordinates: [[[30.07,-1.90],[30.13,-1.90],[30.13,-1.95],[30.07,-1.95],[30.07,-1.90]]] } },
-    { type: 'Feature', properties: { name: 'Kicukiro' }, geometry: { type: 'Polygon', coordinates: [[[30.07,-1.97],[30.12,-1.97],[30.12,-2.01],[30.07,-2.01],[30.07,-1.97]]] } },
-    // Northern Province
-    { type: 'Feature', properties: { name: 'Rulindo' }, geometry: { type: 'Polygon', coordinates: [[[29.95,-1.70],[30.05,-1.70],[30.05,-1.80],[29.95,-1.80],[29.95,-1.70]]] } },
-    { type: 'Feature', properties: { name: 'Gakenke' }, geometry: { type: 'Polygon', coordinates: [[[29.75,-1.65],[29.95,-1.65],[29.95,-1.75],[29.75,-1.75],[29.75,-1.65]]] } },
-    { type: 'Feature', properties: { name: 'Musanze' }, geometry: { type: 'Polygon', coordinates: [[[29.55,-1.45],[29.75,-1.45],[29.75,-1.60],[29.55,-1.60],[29.55,-1.45]]] } },
-    { type: 'Feature', properties: { name: 'Burera' }, geometry: { type: 'Polygon', coordinates: [[[29.75,-1.40],[29.95,-1.40],[29.95,-1.55],[29.75,-1.55],[29.75,-1.40]]] } },
-    { type: 'Feature', properties: { name: 'Gicumbi' }, geometry: { type: 'Polygon', coordinates: [[[30.00,-1.55],[30.15,-1.55],[30.15,-1.70],[30.00,-1.70],[30.00,-1.55]]] } },
-    // Southern Province
-    { type: 'Feature', properties: { name: 'Muhanga' }, geometry: { type: 'Polygon', coordinates: [[[29.70,-2.05],[29.85,-2.05],[29.85,-2.18],[29.70,-2.18],[29.70,-2.05]]] } },
-    { type: 'Feature', properties: { name: 'Kamonyi' }, geometry: { type: 'Polygon', coordinates: [[[29.85,-2.00],[30.00,-2.00],[30.00,-2.12],[29.85,-2.12],[29.85,-2.00]]] } },
-    { type: 'Feature', properties: { name: 'Ruhango' }, geometry: { type: 'Polygon', coordinates: [[[29.70,-2.18],[29.85,-2.18],[29.85,-2.30],[29.70,-2.30],[29.70,-2.18]]] } },
-    { type: 'Feature', properties: { name: 'Nyanza' }, geometry: { type: 'Polygon', coordinates: [[[29.85,-2.18],[30.00,-2.18],[30.00,-2.30],[29.85,-2.30],[29.85,-2.18]]] } },
-    { type: 'Feature', properties: { name: 'Gisagara' }, geometry: { type: 'Polygon', coordinates: [[[29.80,-2.30],[29.95,-2.30],[29.95,-2.45],[29.80,-2.45],[29.80,-2.30]]] } },
-    { type: 'Feature', properties: { name: 'Nyaruguru' }, geometry: { type: 'Polygon', coordinates: [[[29.55,-2.40],[29.75,-2.40],[29.75,-2.60],[29.55,-2.60],[29.55,-2.40]]] } },
-    { type: 'Feature', properties: { name: 'Huye' }, geometry: { type: 'Polygon', coordinates: [[[29.70,-2.45],[29.85,-2.45],[29.85,-2.60],[29.70,-2.60],[29.70,-2.45]]] } },
-    { type: 'Feature', properties: { name: 'Nyamagabe' }, geometry: { type: 'Polygon', coordinates: [[[29.45,-2.25],[29.65,-2.25],[29.65,-2.45],[29.45,-2.45],[29.45,-2.25]]] } },
-    { type: 'Feature', properties: { name: 'Rwamagana' }, geometry: { type: 'Polygon', coordinates: [[[30.25,-1.90],[30.45,-1.90],[30.45,-2.05],[30.25,-2.05],[30.25,-1.90]]] } },
-    // Eastern Province
-    { type: 'Feature', properties: { name: 'Bugesera' }, geometry: { type: 'Polygon', coordinates: [[[30.10,-2.05],[30.30,-2.05],[30.30,-2.25],[30.10,-2.25],[30.10,-2.05]]] } },
-    { type: 'Feature', properties: { name: 'Gatsibo' }, geometry: { type: 'Polygon', coordinates: [[[30.35,-1.60],[30.60,-1.60],[30.60,-1.80],[30.35,-1.80],[30.35,-1.60]]] } },
-    { type: 'Feature', properties: { name: 'Kayonza' }, geometry: { type: 'Polygon', coordinates: [[[30.45,-1.80],[30.70,-1.80],[30.70,-2.00],[30.45,-2.00],[30.45,-1.80]]] } },
-    { type: 'Feature', properties: { name: 'Kirehe' }, geometry: { type: 'Polygon', coordinates: [[[30.55,-2.05],[30.85,-2.05],[30.85,-2.25],[30.55,-2.25],[30.55,-2.05]]] } },
-    { type: 'Feature', properties: { name: 'Ngoma' }, geometry: { type: 'Polygon', coordinates: [[[30.30,-2.05],[30.55,-2.05],[30.55,-2.25],[30.30,-2.25],[30.30,-2.05]]] } },
-    { type: 'Feature', properties: { name: 'Nyagatare' }, geometry: { type: 'Polygon', coordinates: [[[30.15,-1.25],[30.55,-1.25],[30.55,-1.55],[30.15,-1.55],[30.15,-1.25]]] } },
-    // Western Province
-    { type: 'Feature', properties: { name: 'Karongi' }, geometry: { type: 'Polygon', coordinates: [[[29.25,-2.00],[29.50,-2.00],[29.50,-2.20],[29.25,-2.20],[29.25,-2.00]]] } },
-    { type: 'Feature', properties: { name: 'Ngororero' }, geometry: { type: 'Polygon', coordinates: [[[29.45,-1.80],[29.65,-1.80],[29.65,-2.00],[29.45,-2.00],[29.45,-1.80]]] } },
-    { type: 'Feature', properties: { name: 'Nyabihu' }, geometry: { type: 'Polygon', coordinates: [[[29.35,-1.55],[29.55,-1.55],[29.55,-1.75],[29.35,-1.75],[29.35,-1.55]]] } },
-    { type: 'Feature', properties: { name: 'Nyamasheke' }, geometry: { type: 'Polygon', coordinates: [[[29.05,-2.20],[29.30,-2.20],[29.30,-2.45],[29.05,-2.45],[29.05,-2.20]]] } },
-    { type: 'Feature', properties: { name: 'Rubavu' }, geometry: { type: 'Polygon', coordinates: [[[29.20,-1.55],[29.40,-1.55],[29.40,-1.70],[29.20,-1.70],[29.20,-1.55]]] } },
-    { type: 'Feature', properties: { name: 'Rutsiro' }, geometry: { type: 'Polygon', coordinates: [[[29.30,-1.75],[29.50,-1.75],[29.50,-1.95],[29.30,-1.95],[29.30,-1.75]]] } },
-    { type: 'Feature', properties: { name: 'Rusizi' }, geometry: { type: 'Polygon', coordinates: [[[28.90,-2.40],[29.15,-2.40],[29.15,-2.65],[28.90,-2.65],[28.90,-2.40]]] } },
-  ],
+type Layer = 'submission' | 'compliance' | 'forest'
+
+const STATUS_COLOR: Record<string, string> = {
+  submitted: '#10b981',
+  pending: '#f59e0b',
+  missing: '#f43f5e',
 }
 
-type LayerMode = 'submission' | 'compliance' | 'forest'
+// Schematic Rwanda district grid (5 provinces)
+const PROVINCE_GRID = [
+  { province: 'North', color: '#dbeafe', border: '#93c5fd', districts: ['Gakenke', 'Musanze', 'Burera', 'Rulindo', 'Gicumbi'] },
+  { province: 'Kigali', color: '#f3e8ff', border: '#c4b5fd', districts: ['Nyarugenge', 'Gasabo', 'Kicukiro'] },
+  { province: 'West', color: '#dcfce7', border: '#86efac', districts: ['Rubavu', 'Nyabihu', 'Ngororero', 'Karongi', 'Rutsiro', 'Rusizi', 'Nyamasheke'] },
+  { province: 'South', color: '#fef9c3', border: '#fde047', districts: ['Nyanza', 'Gisagara', 'Nyaruguru', 'Huye', 'Kamonyi', 'Ruhango', 'Muhanga'] },
+  { province: 'East', color: '#ffedd5', border: '#fdba74', districts: ['Rwamagana', 'Nyagatare', 'Gatsibo', 'Kayonza', 'Kirehe', 'Ngoma', 'Bugesera'] },
+]
 
-function getColor(d: District | undefined, mode: LayerMode): string {
-  if (!d) return '#cbd5e1'
-  if (mode === 'submission') {
-    return d.submission_status === 'submitted' ? '#10b981'
-      : d.submission_status === 'pending' ? '#f59e0b'
-      : '#f43f5e'
+function getDistrictData(name: string) {
+  return DISTRICT_DATA.find(d => d.name === name || d.name.includes(name.split(' ')[0]))
+}
+
+function getLayerColor(d: typeof DISTRICT_DATA[0] | undefined, layer: Layer): string {
+  if (!d) return '#e2e8f0'
+  if (layer === 'submission') return STATUS_COLOR[d.status] ?? '#e2e8f0'
+  if (layer === 'compliance') {
+    if (d.compliance >= 85) return '#10b981'
+    if (d.compliance >= 70) return '#f59e0b'
+    return '#f43f5e'
   }
-  if (mode === 'compliance') {
-    const s = d.compliance_score
-    return s >= 80 ? '#10b981' : s >= 65 ? '#84cc16' : s >= 50 ? '#f59e0b' : '#f43f5e'
+  if (layer === 'forest') {
+    if (d.forest >= 35) return '#166534'
+    if (d.forest >= 25) return '#16a34a'
+    if (d.forest >= 15) return '#4ade80'
+    return '#bbf7d0'
   }
-  const f = d.forest_cover_pct
-  return f >= 30 ? '#166534' : f >= 20 ? '#16a34a' : f >= 10 ? '#4ade80' : '#bbf7d0'
+  return '#e2e8f0'
 }
 
 export function DistrictMap() {
-  const { districts, distStats, loading } = useDistricts()
-  const [layerMode, setLayerMode] = useState<LayerMode>('submission')
-  const [selected, setSelected] = useState<District | null>(null)
+  const [layer, setLayer] = useState<Layer>('submission')
+  const [hovered, setHovered] = useState<string | null>(null)
 
-  const districtByName = React.useMemo(() => {
-    const map: Record<string, District> = {}
-    districts.forEach(d => { map[d.name.toLowerCase()] = d })
-    return map
-  }, [districts])
-
-  const onEachFeature = (feature: GeoJSON.Feature, layer: L.Layer) => {
-    const name = (feature.properties?.name as string) ?? ''
-    const d = districtByName[name.toLowerCase()]
-    const path = layer as L.Path
-    path.setStyle({ fillColor: getColor(d, layerMode), fillOpacity: 0.75, color: '#fff', weight: 1.5 })
-    layer.on({
-      click: () => setSelected(d ?? null),
-      mouseover: (e: L.LeafletMouseEvent) => (e.target as L.Path).setStyle({ fillOpacity: 0.95, weight: 2.5 }),
-      mouseout: (e: L.LeafletMouseEvent) => (e.target as L.Path).setStyle({ fillOpacity: 0.75, weight: 1.5 }),
-    })
-    if (d) {
-      layer.bindTooltip(
-        `<strong>${d.name}</strong><br/>Compliance: ${d.compliance_score}%<br/>Forest: ${d.forest_cover_pct}%<br/>Status: ${d.submission_status}`,
-        { sticky: true, className: 'leaflet-tooltip' }
-      )
-    } else {
-      layer.bindTooltip(name, { sticky: true })
-    }
-  }
-
-  const LAYERS: { id: LayerMode; label: string }[] = [
-    { id: 'submission', label: '📋 Submission' },
-    { id: 'compliance', label: '⚖️ Compliance' },
-    { id: 'forest', label: '🌿 Forest Cover' },
-  ]
-
-  const LEGENDS: Record<LayerMode, { color: string; label: string }[]> = {
-    submission: [{ color: '#10b981', label: 'Submitted' }, { color: '#f59e0b', label: 'Pending' }, { color: '#f43f5e', label: 'Missing' }],
-    compliance: [{ color: '#10b981', label: '≥80%' }, { color: '#84cc16', label: '65–80%' }, { color: '#f59e0b', label: '50–65%' }, { color: '#f43f5e', label: '<50%' }],
-    forest: [{ color: '#166534', label: '≥30%' }, { color: '#16a34a', label: '20–30%' }, { color: '#4ade80', label: '10–20%' }, { color: '#bbf7d0', label: '<10%' }],
-  }
+  const topDistricts = [...DISTRICT_DATA]
+    .sort((a, b) => b.compliance - a.compliance)
+    .slice(0, 10)
 
   return (
     <div>
-      {/* Stats */}
-      {distStats && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '10px', marginBottom: '16px' }}>
-          {[
-            { label: 'Total Districts', val: distStats.total, color: '#0ea5e9' },
-            { label: 'Submitted', val: distStats.submitted, color: '#10b981' },
-            { label: 'Pending', val: distStats.pending, color: '#f59e0b' },
-            { label: 'Missing', val: distStats.missing, color: '#f43f5e' },
-          ].map(s => (
-            <div key={s.label} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '14px', textAlign: 'center' }}>
-              <div style={{ fontSize: '1.6rem', fontWeight: 700, fontFamily: "'Playfair Display',serif", color: s.color }}>{s.val}</div>
-              <div style={{ fontSize: '.68rem', color: '#94a3b8', fontFamily: "'DM Mono',monospace", marginTop: '3px' }}>{s.label}</div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Layer controls + legend */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-        <span style={{ fontSize: '.72rem', fontWeight: 600, color: '#94a3b8', fontFamily: "'DM Mono',monospace", textTransform: 'uppercase', letterSpacing: '.06em' }}>Layer</span>
-        {LAYERS.map(l => (
-          <button key={l.id} onClick={() => setLayerMode(l.id)} style={{
-            padding: '5px 14px', borderRadius: '20px', border: '1px solid #e2e8f0',
-            fontSize: '.75rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
-            background: layerMode === l.id ? '#0f2744' : '#fff',
-            color: layerMode === l.id ? '#fff' : '#475569',
-          }}>{l.label}</button>
-        ))}
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-          {LEGENDS[layerMode].map(l => (
-            <span key={l.label} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '.72rem', color: '#475569' }}>
-              <span style={{ width: '10px', height: '10px', borderRadius: '2px', background: l.color, display: 'inline-block' }} />{l.label}
-            </span>
+      {/* Layer selector */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20, alignItems: 'center' }}>
+        <span style={{ fontSize: '.78rem', fontWeight: 600, color: '#64748b' }}>Layer:</span>
+        <div className="filter-chips">
+          {([['submission', 'Submission Status'], ['compliance', 'Compliance Score'], ['forest', 'Forest Cover']] as [Layer, string][]).map(([l, label]) => (
+            <button key={l} className={`chip${layer === l ? ' active' : ''}`} onClick={() => setLayer(l)}>{label}</button>
           ))}
         </div>
       </div>
 
-      {/* Map + detail */}
-      <div style={{ display: 'grid', gridTemplateColumns: selected ? '1fr 280px' : '1fr', gap: '12px' }}>
-        <div style={{ borderRadius: '14px', overflow: 'hidden', border: '1px solid #e2e8f0', height: '520px' }}>
-          {loading ? (
-            <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8fafc', color: '#94a3b8' }}>
-              Loading district data…
-            </div>
-          ) : (
-            <MapContainer center={[-1.94, 29.87]} zoom={8} style={{ height: '100%', width: '100%' }} scrollWheelZoom>
-              <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
-              <GeoJSON key={layerMode + districts.length} data={RWANDA_GEOJSON} onEachFeature={onEachFeature} />
-            </MapContainer>
-          )}
-        </div>
-
-        {selected && (
-          <div style={{ background: '#fff', borderRadius: '14px', border: '1px solid #e2e8f0', padding: '18px', alignSelf: 'start' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-              <h3 style={{ margin: 0, fontSize: '.95rem', fontWeight: 700 }}>{selected.name}</h3>
-              <button onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '1rem' }}>✕</button>
-            </div>
-            {[
-              { label: 'Province', val: (selected as any).provinces?.name ?? '—', color: undefined },
-              { label: 'Compliance', val: `${selected.compliance_score}%`, color: selected.compliance_score >= 80 ? '#10b981' : selected.compliance_score >= 65 ? '#f59e0b' : '#f43f5e' },
-              { label: 'Forest Cover', val: `${selected.forest_cover_pct}%`, color: '#166534' },
-              { label: 'Status', val: selected.submission_status, color: selected.submission_status === 'submitted' ? '#10b981' : selected.submission_status === 'pending' ? '#f59e0b' : '#f43f5e' },
-            ].map(r => (
-              <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f8fafc', fontSize: '.8rem' }}>
-                <span style={{ color: '#64748b' }}>{r.label}</span>
-                <span style={{ fontWeight: 700, color: r.color ?? '#0f172a', fontFamily: "'DM Mono',monospace", fontSize: '.75rem' }}>{r.val}</span>
+      <div className="grid-2-1">
+        {/* Map */}
+        <div className="card" style={{ padding: 20 }}>
+          <div className="section-header">
+            <div className="section-title">🗺️ Rwanda District Map</div>
+            <span className="section-badge badge-live">Live</span>
+          </div>
+          <div className="map-container" style={{ minHeight: 360, flexDirection: 'column', gap: 8, padding: 16, alignItems: 'stretch' }}>
+            {PROVINCE_GRID.map(prov => (
+              <div key={prov.province} style={{ marginBottom: 8 }}>
+                <div style={{ fontSize: '.65rem', fontWeight: 700, color: '#94a3b8', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '.06em' }}>{prov.province}</div>
+                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                  {prov.districts.map(dname => {
+                    const d = getDistrictData(dname)
+                    const bg = getLayerColor(d, layer)
+                    const isHov = hovered === dname
+                    return (
+                      <div
+                        key={dname}
+                        onMouseEnter={() => setHovered(dname)}
+                        onMouseLeave={() => setHovered(null)}
+                        style={{
+                          padding: '6px 10px',
+                          borderRadius: 7,
+                          background: bg,
+                          border: `1.5px solid ${isHov ? '#0f2744' : prov.border}`,
+                          fontSize: '.65rem',
+                          fontWeight: 600,
+                          color: '#0f172a',
+                          cursor: 'pointer',
+                          transition: 'all .15s',
+                          transform: isHov ? 'scale(1.05)' : 'scale(1)',
+                          boxShadow: isHov ? '0 4px 12px rgba(0,0,0,.15)' : 'none',
+                          position: 'relative',
+                        }}
+                        title={d ? `${dname}: ${layer === 'submission' ? d.status : layer === 'compliance' ? d.compliance + '%' : d.forest + '%'}` : dname}
+                      >
+                        {dname}
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
             ))}
-            <div style={{ marginTop: '12px' }}>
-              <div style={{ fontSize: '.68rem', color: '#94a3b8', marginBottom: '5px' }}>Compliance</div>
-              <div style={{ height: '8px', background: '#f1f5f9', borderRadius: '4px', overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: `${selected.compliance_score}%`, borderRadius: '4px', transition: 'width .6s', background: selected.compliance_score >= 80 ? '#10b981' : selected.compliance_score >= 65 ? '#f59e0b' : '#f43f5e' }} />
-              </div>
+
+            {/* Legend */}
+            <div className="map-legend">
+              {layer === 'submission' && (
+                <>
+                  {[['submitted', '#10b981', 'Submitted'], ['pending', '#f59e0b', 'Pending'], ['missing', '#f43f5e', 'Missing']].map(([k, c, l]) => (
+                    <div key={k} className="legend-row"><div className="legend-swatch" style={{ background: c as string }} /><span>{l}</span></div>
+                  ))}
+                </>
+              )}
+              {layer === 'compliance' && (
+                <>
+                  {[['#10b981', '≥85%'], ['#f59e0b', '70–84%'], ['#f43f5e', '<70%']].map(([c, l]) => (
+                    <div key={l} className="legend-row"><div className="legend-swatch" style={{ background: c as string }} /><span>{l}</span></div>
+                  ))}
+                </>
+              )}
+              {layer === 'forest' && (
+                <>
+                  {[['#166534', '≥35%'], ['#16a34a', '25–34%'], ['#4ade80', '15–24%'], ['#bbf7d0', '<15%']].map(([c, l]) => (
+                    <div key={l} className="legend-row"><div className="legend-swatch" style={{ background: c as string }} /><span>{l}</span></div>
+                  ))}
+                </>
+              )}
             </div>
           </div>
-        )}
+
+          {/* Hovered district info */}
+          {hovered && (() => {
+            const d = getDistrictData(hovered)
+            return d ? (
+              <div style={{ marginTop: 10, padding: '10px 14px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: '.78rem' }}>
+                <strong>{hovered}</strong> · {d.province} Province · Compliance: <strong>{d.compliance}%</strong> · Forest: <strong>{d.forest}%</strong> · Status: <span style={{ color: STATUS_COLOR[d.status] }}>{d.status}</span>
+              </div>
+            ) : null
+          })()}
+        </div>
+
+        {/* District Summary */}
+        <div className="card" style={{ padding: 20 }}>
+          <div className="section-header">
+            <div className="section-title">🏆 Top 10 by Compliance</div>
+          </div>
+          {topDistricts.map((d, i) => (
+            <div key={d.name} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0', borderBottom: '1px solid #f1f5f9' }}>
+              <span style={{ width: 20, fontSize: '.7rem', fontWeight: 700, color: '#94a3b8', fontFamily: "'DM Mono',monospace" }}>{i + 1}</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: '.78rem', fontWeight: 600 }}>{d.name}</div>
+                <div style={{ fontSize: '.65rem', color: '#94a3b8' }}>{d.province}</div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: '.78rem', fontWeight: 700, color: d.compliance >= 85 ? '#10b981' : '#f59e0b' }}>{d.compliance}%</div>
+                <div style={{ width: 60, height: 4, background: '#f1f5f9', borderRadius: 2, marginTop: 2 }}>
+                  <div style={{ height: '100%', width: `${d.compliance}%`, background: d.compliance >= 85 ? '#10b981' : '#f59e0b', borderRadius: 2 }} />
+                </div>
+              </div>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: STATUS_COLOR[d.status], flexShrink: 0 }} />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Province chart */}
+      <div className="card" style={{ padding: 20, marginTop: 16 }}>
+        <div className="section-header">
+          <div className="section-title">📊 District Reporting by Province</div>
+        </div>
+        <div style={{ height: 160, background: 'linear-gradient(135deg,#f0f9ff,#e0f2fe)', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: '.8rem', border: '1px dashed #bae6fd' }}>
+          📊 Province comparison chart — Chart.js integration pending
+        </div>
       </div>
     </div>
   )
