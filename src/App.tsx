@@ -28,7 +28,8 @@ const AuthCallback = lazy(() => import('./pages/stubs').then(m => ({ default: m.
 // ── Tab routing (SPA without React Router for simplicity) ──
 export type TabId =
   | 'dashboard' | 'indicators' | 'targets22' | 'adaptive-mgmt'
-  | 'reporting-toolkit' | 'verif-queue' | 'compliance' | 'risk'
+  | 'reporting-toolkit' | 't01' | 't02' | 't03' | 't04' | 't05' | 't06' | 't07'
+  | 'verif-queue' | 'compliance' | 'risk'
   | 'reports' | 'stakeholders' | 'rbis' | 'data-pipeline' | 'map'
   | 'admin'
 
@@ -37,7 +38,6 @@ function AppInner() {
   const [activeTab, setActiveTab] = React.useState<TabId>('dashboard')
   const [linkedIndicatorId, setLinkedIndicatorId] = React.useState<string | null>(null)
 
-  // Handle OAuth callback
   useEffect(() => {
     if (window.location.pathname === '/auth/callback') {
       window.history.replaceState({}, '', '/')
@@ -48,11 +48,14 @@ function AppInner() {
   if (!profile) return <LoginPage onSuccess={() => setActiveTab('dashboard')} />
 
   const switchTab = (tab: TabId) => { setActiveTab(tab); setLinkedIndicatorId(null) }
+  const goToIndicator = (id: string) => { setLinkedIndicatorId(id); setActiveTab('indicators') }
 
-  const goToIndicator = (indicatorId: string) => {
-    setLinkedIndicatorId(indicatorId)
-    setActiveTab('indicators')
+  // Map individual tool tabs to tool ID
+  const toolTabMap: Partial<Record<TabId, string>> = {
+    't01': 'T01', 't02': 'T02', 't03': 'T03', 't04': 'T04',
+    't05': 'T05', 't06': 'T06', 't07': 'T07',
   }
+  const isToolTab = (tab: TabId) => tab in toolTabMap
 
   return (
     <DashboardShell activeTab={activeTab} onTabChange={switchTab}>
@@ -61,9 +64,9 @@ function AppInner() {
         {activeTab === 'indicators'        && <Indicators linkedIndicatorId={linkedIndicatorId} onClearLink={() => setLinkedIndicatorId(null)} />}
         {activeTab === 'targets22'         && <Targets22 onViewIndicator={goToIndicator} />}
         {activeTab === 'adaptive-mgmt'     && <AdaptiveMgmt />}
-        {activeTab === 'reporting-toolkit' && (
+        {(activeTab === 'reporting-toolkit' || isToolTab(activeTab)) && (
           <ProtectedRoute requiredRoles={['admin','district_officer','sector_officer']}>
-            <ReportingToolkit />
+            <ReportingToolkit defaultTool={toolTabMap[activeTab]} />
           </ProtectedRoute>
         )}
         {activeTab === 'verif-queue'       && (

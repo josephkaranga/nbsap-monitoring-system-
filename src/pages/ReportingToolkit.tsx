@@ -517,10 +517,11 @@ function SubmissionsTable({ reports, onDelete, onRefresh }: { reports: Report[];
 }
 
 // ── Main component ─────────────────────────────────────────
-export default function ReportingToolkit() {
+export default function ReportingToolkit({ defaultTool }: { defaultTool?: string }) {
   const { profile } = useAuth()
   const { reports, stats, loading, refresh, deleteReport } = useReports({})
-  const [activeTool, setActiveTool] = useState<ToolDef | null>(null)
+  const defaultToolDef = defaultTool ? TOOLS.find(t => t.id === defaultTool) ?? null : null
+  const [activeTool, setActiveTool] = useState<ToolDef | null>(defaultToolDef)
   const [activeSubTab, setActiveSubTab] = useState<'submissions' | 'analytics'>('submissions')
 
   if (activeTool) {

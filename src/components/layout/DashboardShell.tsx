@@ -21,24 +21,31 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   // Analytics
-  { id: 'dashboard',         icon: '📊', label: 'Dashboard',          section: 'Analytics' },
-  { id: 'indicators',        icon: '📐', label: 'Indicator Hierarchy', section: 'Analytics' },
-  { id: 'targets22',         icon: '🎯', label: '22 National Targets', section: 'Analytics' },
-  { id: 'adaptive-mgmt',     icon: '🔄', label: 'Adaptive Management', section: 'Analytics' },
-  // Reporting
-  { id: 'reporting-toolkit', icon: '📝', label: 'T01 – T07 Modules',   section: 'Reporting', roles: ['admin','district_officer','sector_officer'] },
+  { id: 'dashboard',         icon: '📊', label: 'Dashboard',              section: 'Analytics' },
+  { id: 'indicators',        icon: '📐', label: 'Indicator Hierarchy',     section: 'Analytics' },
+  { id: 'targets22',         icon: '🎯', label: '22 National Targets',     section: 'Analytics' },
+  { id: 'adaptive-mgmt',     icon: '🔄', label: 'Adaptive Management',     section: 'Analytics' },
+  // Reporting Modules
+  { id: 'reporting-toolkit', icon: '🗂️', label: 'All Modules',             section: 'Reporting Modules', roles: ['admin','district_officer','sector_officer'] },
+  { id: 't01',               icon: '🏛️', label: 'T01 · Institutional',     section: 'Reporting Modules', roles: ['admin','district_officer','sector_officer'] },
+  { id: 't02',               icon: '🌿', label: 'T02 · District',          section: 'Reporting Modules', roles: ['admin','district_officer','sector_officer'] },
+  { id: 't03',               icon: '🛡️', label: 'T03 · Protected Areas',   section: 'Reporting Modules', roles: ['admin','district_officer','sector_officer'] },
+  { id: 't04',               icon: '👥', label: 'T04 · Community',         section: 'Reporting Modules', roles: ['admin','district_officer','sector_officer'] },
+  { id: 't05',               icon: '💰', label: 'T05 · Finance',           section: 'Reporting Modules', roles: ['admin','district_officer','sector_officer'] },
+  { id: 't06',               icon: '🏢', label: 'T06 · Private Sector',    section: 'Reporting Modules', roles: ['admin','district_officer','sector_officer'] },
+  { id: 't07',               icon: '🔬', label: 'T07 · Research',          section: 'Reporting Modules', roles: ['admin','district_officer','sector_officer'] },
   // Governance
-  { id: 'verif-queue',       icon: '✅', label: 'Verification Queue',  section: 'Governance', roles: ['admin','sector_officer'] },
-  { id: 'compliance',        icon: '⚖️', label: 'Compliance',          section: 'Governance' },
-  { id: 'risk',              icon: '⚠️', label: 'Risk Register',       section: 'Governance' },
-  { id: 'reports',           icon: '📋', label: 'Reports',             section: 'Governance' },
-  { id: 'stakeholders',      icon: '👥', label: 'Stakeholders',        section: 'Governance' },
+  { id: 'verif-queue',       icon: '✅', label: 'Verification Queue',      section: 'Governance', roles: ['admin','sector_officer'] },
+  { id: 'compliance',        icon: '⚖️', label: 'Compliance',              section: 'Governance' },
+  { id: 'risk',              icon: '⚠️', label: 'Risk Register',           section: 'Governance' },
+  { id: 'reports',           icon: '📋', label: 'Reports',                 section: 'Governance' },
+  { id: 'stakeholders',      icon: '👥', label: 'Stakeholders',            section: 'Governance' },
   // System
-  { id: 'rbis',              icon: '🗄️', label: 'RBIS Integration',    section: 'System' },
-  { id: 'data-pipeline',     icon: '🔀', label: 'Data Pipeline',       section: 'System' },
-  { id: 'map',               icon: '🗺️', label: 'District Map',        section: 'System' },
+  { id: 'rbis',              icon: '🗄️', label: 'RBIS Integration',        section: 'System' },
+  { id: 'data-pipeline',     icon: '🔀', label: 'Data Pipeline',           section: 'System' },
+  { id: 'map',               icon: '🗺️', label: 'District Map',            section: 'System' },
   // Admin
-  { id: 'admin',             icon: '🛡️', label: 'Admin Panel',         section: 'Admin', roles: ['admin'] },
+  { id: 'admin',             icon: '🛡️', label: 'Admin Panel',             section: 'Admin', roles: ['admin'] },
 ]
 
 const TAB_TITLES: Record<TabId, string> = {
@@ -47,6 +54,13 @@ const TAB_TITLES: Record<TabId, string> = {
   'targets22': '22 National Targets',
   'adaptive-mgmt': 'Adaptive Management',
   'reporting-toolkit': 'Reporting Modules (T01–T07)',
+  't01': 'T01 · Institutional Report',
+  't02': 'T02 · District Restoration',
+  't03': 'T03 · Protected Areas',
+  't04': 'T04 · Community Data',
+  't05': 'T05 · Finance Tracking',
+  't06': 'T06 · Private Sector EIA',
+  't07': 'T07 · Research Data',
   'verif-queue': 'Verification Queue',
   'compliance': 'Compliance & Accountability',
   'risk': 'Risk Register',
@@ -81,7 +95,6 @@ export function DashboardShell({ activeTab, onTabChange, children }: Props) {
   // Filter nav items by role
   const isViewer = profile?.role === 'viewer'
   const VIEWER_ALLOWED_TABS: TabId[] = ['dashboard', 'indicators', 'targets22', 'map']
-
   const visibleNav = NAV_ITEMS.filter(item => {
     if (isViewer && !VIEWER_ALLOWED_TABS.includes(item.id)) return false
     if (!item.roles) return true
