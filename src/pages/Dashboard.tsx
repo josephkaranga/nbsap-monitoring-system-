@@ -413,7 +413,53 @@ NBSAP Q1 2026 LIVE DATA:
         </div>
       </div>
 
-      {/* Live toolkit stats — hidden for viewers */}
+      {/* Access Layers */}
+      {!isViewer && (
+        <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '14px', padding: '18px', marginBottom: '24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+            <h3 style={{ fontSize: '.9rem', fontWeight: 700, margin: 0 }}>🔐 Dashboard Access Layers</h3>
+            <span style={{ fontSize: '.65rem', padding: '3px 8px', borderRadius: '10px', background: '#f1f5f9', color: '#475569', fontWeight: 700, fontFamily: "'DM Mono',monospace" }}>Role-Based</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '12px' }}>
+            {[
+              { icon: '🌐', title: 'PUBLIC ACCESS', desc: 'Headline indicators · National progress summaries · Maps & trends · Transparency & accountability', color: '#0ea5e9', bg: '#e0f2fe' },
+              { icon: '🏛️', title: 'INSTITUTIONAL REPORTING', desc: 'Ministries · Districts · Protected area authorities · Research institutions · Data entry & progress tracking', color: '#10b981', bg: '#dcfce7' },
+              { icon: '📊', title: 'DECISION-MAKER ANALYTICS', desc: 'REMA · Cabinet technical teams · Policy planners · Performance dashboards · Scenario modelling · Exportable reports', color: '#8b5cf6', bg: '#f3e8ff' },
+            ].map(l => (
+              <div key={l.title} style={{ background: l.bg, borderRadius: '10px', padding: '14px', borderLeft: `3px solid ${l.color}` }}>
+                <div style={{ fontSize: '1.2rem', marginBottom: '6px' }}>{l.icon}</div>
+                <div style={{ fontWeight: 700, fontSize: '.72rem', color: l.color, fontFamily: "'DM Mono',monospace", letterSpacing: '.06em', marginBottom: '5px' }}>{l.title}</div>
+                <div style={{ fontSize: '.72rem', color: '#475569', lineHeight: 1.5 }}>{l.desc}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* NBSAP Target Progress */}
+      <div style={{ background: '#fff', borderRadius: '14px', border: '1px solid #e2e8f0', padding: '18px', marginBottom: '24px' }}>
+        <h3 style={{ fontSize: '.9rem', fontWeight: 700, margin: '0 0 16px', display: 'flex', alignItems: 'center', gap: '8px' }}>🎯 NBSAP Target Progress (2025–2030)</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+          {[
+            { name: 'Forest Cover', current: '27%', target: '30%', pct: 90, color: '#10b981' },
+            { name: 'Wetland Restoration', current: '600', target: '1200 ha', pct: 50, color: '#0ea5e9' },
+            { name: 'Species Protection', current: '650', target: '800', pct: 81, color: '#8b5cf6' },
+            { name: 'Community Participation', current: '60%', target: '80%', pct: 75, color: '#f59e0b' },
+            { name: 'Water Quality', current: '80%', target: '90%', pct: 89, color: '#0891b2' },
+            { name: 'Policy Integration', current: '10', target: '15 plans', pct: 67, color: '#059669' },
+          ].map(t => (
+            <div key={t.name} style={{ background: '#f8fafc', borderRadius: '10px', padding: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '.78rem', marginBottom: '6px' }}>
+                <span style={{ fontWeight: 600 }}>{t.name}</span>
+                <span style={{ color: '#94a3b8', fontFamily: "'DM Mono',monospace", fontSize: '.72rem' }}>{t.current} / {t.target}</span>
+              </div>
+              <div style={{ height: '7px', background: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
+                <div style={{ width: `${t.pct}%`, height: '100%', background: t.color, borderRadius: '4px', transition: 'width .8s' }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
       {!isViewer && stats && stats.total > 0 && (
         <div style={{ background: '#fff', borderRadius: '14px', border: '1px solid #e2e8f0', padding: '18px', marginBottom: '24px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>

@@ -58,6 +58,43 @@ export function RiskRegister() {
         </div>
       </div>
 
+      {/* Table */}
+      <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden', marginBottom: '16px' }}>
+        <div style={{ padding: '12px 16px', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontWeight: 700, fontSize: '.88rem' }}>⚠️ Risk Mitigation Matrix <span style={{ fontSize: '.72rem', color: '#94a3b8', fontWeight: 400 }}>{filtered.length} Identified Risks</span></span>
+        </div>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '.78rem' }}>
+            <thead>
+              <tr style={{ background: '#f8fafc' }}>
+                {['#', 'Risk Description', 'Category', 'Likelihood', 'Impact', 'Level', 'Contingency / Mitigation', 'Owner'].map(h => (
+                  <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: '.65rem', fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase', color: '#94a3b8', whiteSpace: 'nowrap' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {loading
+                ? <tr><td colSpan={8} style={{ padding: '32px', textAlign: 'center', color: '#94a3b8' }}>Loading from Supabase…</td></tr>
+                : filtered.map(r => {
+                  const [bg, fg] = levelColors[r.level] ?? ['#f1f5f9','#475569']
+                  return (
+                    <tr key={r.id} style={{ borderBottom: '1px solid #f8fafc' }}>
+                      <td style={{ padding: '11px 14px', fontWeight: 700, fontFamily: "'DM Mono',monospace", color: '#94a3b8' }}>{r.code}</td>
+                      <td style={{ padding: '11px 14px', fontWeight: 600, maxWidth: '180px' }}>{r.description}</td>
+                      <td style={{ padding: '11px 14px' }}><span style={{ fontSize: '.65rem', padding: '2px 8px', borderRadius: '8px', background: '#dbeafe', color: '#1e40af', fontWeight: 700 }}>{r.category}</span></td>
+                      <td style={{ padding: '11px 14px', color: '#64748b', fontSize: '.75rem' }}>{r.likelihood}</td>
+                      <td style={{ padding: '11px 14px', color: '#64748b', fontSize: '.75rem' }}>{r.impact}</td>
+                      <td style={{ padding: '11px 14px' }}><span style={{ fontSize: '.65rem', padding: '2px 8px', borderRadius: '8px', fontWeight: 700, fontFamily: "'DM Mono',monospace", background: bg, color: fg }}>{r.level}</span></td>
+                      <td style={{ padding: '11px 14px', color: '#475569', fontSize: '.73rem', maxWidth: '220px', lineHeight: 1.4 }}>{r.mitigation}</td>
+                      <td style={{ padding: '11px 14px', color: '#94a3b8', fontSize: '.72rem', whiteSpace: 'nowrap' }}>{r.owner}</td>
+                    </tr>
+                  )
+                })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       {/* Heat map */}
       <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '14px', padding: '18px', marginTop: '16px' }}>
         <h4 style={{ margin: '0 0 14px', fontSize: '.88rem', fontWeight: 700 }}>🔥 Risk Heat Map (Likelihood × Impact)</h4>
