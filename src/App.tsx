@@ -3,16 +3,14 @@
 // Root application — auth-aware routing + global providers
 // ============================================================
 
-import React, { useEffect, lazy, Suspense, type ComponentType } from 'react'
+import React, { useEffect, lazy, Suspense } from 'react'
 import { AuthProvider, useAuth } from './hooks/useAuth'
 import { LoginPage, ProtectedRoute } from './components/auth/index'
 import { DashboardShell } from './components/layout/DashboardShell'
-import type { default as IndicatorsType } from './pages/Indicators'
-import type { Targets22 as Targets22Type } from './pages/stubs'
 
 // Lazy-loaded tabs for code splitting
 const Dashboard    = lazy(() => import('./pages/Dashboard'))
-const Indicators   = lazy(() => import('./pages/Indicators')) as unknown as ComponentType<React.ComponentProps<typeof IndicatorsType>>
+const IndicatorsLazy = lazy(() => import('./pages/Indicators'))
 const ReportingToolkit = lazy(() => import('./pages/ReportingToolkit'))
 const VerifQueue   = lazy(() => import('./pages/VerifQueue'))
 const Compliance   = lazy(() => import('./pages/stubs').then(m => ({ default: m.Compliance })))
@@ -23,9 +21,13 @@ const Stakeholders = lazy(() => import('./pages/stubs').then(m => ({ default: m.
 const RBISPage     = lazy(() => import('./pages/stubs').then(m => ({ default: m.RBIS })))
 const DataPipeline = lazy(() => import('./pages/stubs').then(m => ({ default: m.DataPipeline })))
 const AdaptiveMgmt = lazy(() => import('./pages/stubs').then(m => ({ default: m.AdaptiveMgmt })))
-const Targets22    = lazy(() => import('./pages/stubs').then(m => ({ default: m.Targets22 }))) as unknown as ComponentType<React.ComponentProps<typeof Targets22Type>>
+const Targets22Lazy = lazy(() => import('./pages/stubs').then(m => ({ default: m.Targets22 })))
 const AdminPanel   = lazy(() => import('./pages/AdminPanel'))
 const AuthCallback = lazy(() => import('./pages/stubs').then(m => ({ default: m.AuthCallback })))
+
+// Typed wrappers to restore prop types lost by lazy()
+const Indicators = IndicatorsLazy as unknown as React.ComponentType<{ linkedIndicatorId?: string | null; onClearLink?: () => void }>
+const Targets22  = Targets22Lazy  as unknown as React.ComponentType<{ onViewIndicator?: (id: string) => void }>
 
 // ── Tab routing (SPA without React Router for simplicity) ──
 export type TabId =
